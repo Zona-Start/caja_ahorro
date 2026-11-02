@@ -1,4 +1,5 @@
 import { useAuthStore } from '@/stores/auth.store';
+import { DashboardHome } from '@/features/dashboard/components/dashboard-home';
 import { useDashboardStats } from '@/features/dashboard/hooks/use-dashboard-stats';
 import type {
   SavingsStats,
@@ -388,7 +389,14 @@ function DashboardSkeleton() {
   );
 }
 
-export default function DashboardIndex() {
+/**
+ * Vista anterior con todos los indicadores del dashboard.
+ *
+ * Se mantiene sin renderizar para poder restaurarla cuando se necesite.
+ * Para volver a mostrarla, cambiar el default export de abajo por
+ * `<DashboardIndicators />`.
+ */
+export function DashboardIndicators() {
   const user = useAuthStore((s) => s.user);
   const { data, isLoading, isError } = useDashboardStats();
   const hasPermission = useAuthStore((state) => state.hasPermission);
@@ -912,4 +920,12 @@ export default function DashboardIndex() {
       )}
     </div>
   );
+}
+
+/**
+ * Página de inicio actual: solo el logo centrado.
+ * Los indicadores quedan desactivados en `DashboardIndicators`.
+ */
+export default function DashboardIndex() {
+  return <DashboardHome />;
 }

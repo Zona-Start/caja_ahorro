@@ -1,7 +1,15 @@
 import { useAccountingAccounts } from '@/features/accounting/accounting-accounts/hooks/use-accounting-accounts-query';
 import { useAccountingCycles } from '@/features/accounting/accounting-cycles/hooks/use-accounting-cycles-query';
+import { useToastSystem } from '@/hooks/use-toast-system';
+import { apiClient } from '@/lib/api-client';
 import { Button } from '@repo/shadcn/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@repo/shadcn/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@repo/shadcn/dropdown-menu';
 import { Input } from '@repo/shadcn/input';
 import { Label } from '@repo/shadcn/label';
 import { SelectSearchable } from '@repo/shadcn/select-searchable';
@@ -14,7 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from '@repo/shadcn/table';
-import { Download, Printer } from 'lucide-react';
+import { Download, FileSpreadsheet, FileText, Loader2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useAccountBalances } from '../hooks/use-accounting-reports-query';
 
@@ -32,6 +40,12 @@ export function AccountBalanceReport() {
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
   const [search, setSearch] = useState<string>('');
   const [page, setPage] = useState(1);
+  const [isExporting, setIsExporting] = useState(false);
+  const {
+    error: showError,
+    success: showSuccess,
+    info: showInfo,
+  } = useToastSystem();
 
   const accountOptions = useMemo(
     () =>
@@ -50,15 +64,51 @@ export function AccountBalanceReport() {
     limit: 20,
   });
 
-  const handleExport = () => {
-    const params = new URLSearchParams();
-    if (selectedCycleId) params.append('accountingCycleId', selectedCycleId);
-    if (selectedAccountId) params.append('accountPlanId', selectedAccountId);
-    if (search) params.append('search', search);
-    window.open(
-      `/accounting-reports/account-balances/pdf?${params.toString()}`,
-      '_blank',
-    );
+  const handleExportPdf = async () => {
+    if (!selectedAccountId || isExporting) return;
+
+    setIsExporting(true);
+    try {
+      const params = new URLSearchParams();
+      if (selectedCycleId) params.set('accountingCycleId', selectedCycleId);
+      params.set('accountPlanId', selectedAccountId);
+      if (search) params.set('search', search);
+
+      const response = await apiClient.get(
+        `/accounting-reports/account-balances/pdf?${params.toString()}`,
+        { responseType: 'blob' },
+      );
+
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `balance_por_cuenta_${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+
+      showSuccess('Balance por Cuenta exportado a PDF');
+    } catch (error) {
+      showError({
+        title: 'Error al exportar PDF',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'No se pudo generar el PDF del Balance por Cuenta.',
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportExcel = () => {
+    showInfo({
+      title: 'Excel en construcción',
+      description:
+        'El reporte en Excel del Balance por Cuenta estará disponible próximamente.',
+    });
   };
 
   const account = data?.account;
@@ -118,21 +168,35 @@ export function AccountBalanceReport() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Balance por Cuenta</CardTitle>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => window.print()}>
-              <Printer className="h-4 w-4 mr-2" />
-              Imprimir
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExport}
-              disabled={!selectedAccountId}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Exportar PDF
-            </Button>
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!selectedAccountId || isExporting}
+              >
+                {isExporting ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4 mr-2" />
+                )}
+                {isExporting ? 'Generando...' : 'Exportar'}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={handleExportPdf}
+                disabled={isExporting}
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                PDF (.pdf)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportExcel}>
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                Excel (.xlsx)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </CardHeader>
         <CardContent>
           {!selectedAccountId ? (

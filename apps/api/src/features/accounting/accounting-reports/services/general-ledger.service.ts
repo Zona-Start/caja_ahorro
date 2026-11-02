@@ -132,12 +132,36 @@ export class GeneralLedgerService {
       const bal = balanceMap.get(account.id);
       const initialBalance = bal?.initialBalance ?? '0.00';
       const accountMovements = movementsByAccount.get(account.id) || [];
+      const isDebitNature = account.nature === 'DEBIT';
 
-      let runningBalance = parseFloat(initialBalance);
+      // La carga inicial ya está reflejada en account_balances.initial_balance,
+      // pero también existe como asiento POSTED. Si el asiento cae dentro del
+      // rango consultado, se descuenta del saldo de apertura para no contarlo
+      // dos veces; la fila de la carga inicial queda visible y arranca desde 0.
+      const initialLoadNet = accountMovements.reduce((sum, m) => {
+        const origin = String(m.originType ?? '').toUpperCase();
+        const description = String(m.description ?? '').toUpperCase();
+        const isInitialLoad =
+          origin === 'INITIAL_LOAD' || description.includes('CARGA INICIAL');
+        if (!isInitialLoad) return sum;
+
+        const debit = parseFloat(m.debit) || 0;
+        const credit = parseFloat(m.credit) || 0;
+        return sum + (isDebitNature ? debit - credit : credit - debit);
+      }, 0);
+
+      const initialBalanceValue = parseFloat(initialBalance) || 0;
+      const openingBalance =
+        initialLoadNet !== 0 &&
+        Math.abs(initialBalanceValue - initialLoadNet) < 0.01
+          ? 0
+          : initialBalanceValue;
+
+      let runningBalance = openingBalance;
       const entries = accountMovements.map((m) => {
-        const debit = parseFloat(m.debit);
-        const credit = parseFloat(m.credit);
-        runningBalance = runningBalance + debit - credit;
+        const debit = parseFloat(m.debit) || 0;
+        const credit = parseFloat(m.credit) || 0;
+        runningBalance += isDebitNature ? debit - credit : credit - debit;
         return {
           entryId: m.entryId,
           entryDate: m.entryDate,
@@ -150,10 +174,10 @@ export class GeneralLedgerService {
       });
 
       const totalDebit = accountMovements
-        .reduce((sum, m) => sum + parseFloat(m.debit), 0)
+        .reduce((sum, m) => sum + (parseFloat(m.debit) || 0), 0)
         .toFixed(6);
       const totalCredit = accountMovements
-        .reduce((sum, m) => sum + parseFloat(m.credit), 0)
+        .reduce((sum, m) => sum + (parseFloat(m.credit) || 0), 0)
         .toFixed(6);
       const finalBalance = runningBalance.toFixed(6);
 
@@ -162,7 +186,7 @@ export class GeneralLedgerService {
         accountCode: account.code,
         accountName: account.name,
         accountNature: account.nature,
-        initialBalance,
+        initialBalance: openingBalance.toFixed(6),
         totalDebit,
         totalCredit,
         finalBalance,
@@ -193,9 +217,32 @@ export class GeneralLedgerService {
     });
 
     const content = buildGeneralLedgerTableContent(data);
+    const dateLabel = this.buildFilterDateLabel(
+      filters.startDate,
+      filters.endDate,
+    );
+
     return this.pdfService.generateReport('LIBRO MAYOR', content, {
       orientation: 'landscape',
       pageSize: 'LETTER',
+      tenantId,
+      subtitle: dateLabel,
     });
+  }
+
+  private buildFilterDateLabel(startDate?: string, endDate?: string) {
+    const format = (value?: string) => {
+      if (!value) return null;
+      const [year, month, day] = value.split('-');
+      return year && month && day ? `${day}/${month}/${year}` : value;
+    };
+
+    const from = format(startDate);
+    const to = format(endDate);
+
+    if (from && to) return `Del ${from} al ${to}`;
+    if (from) return `Desde ${from}`;
+    if (to) return `Hasta ${to}`;
+    return 'Todos los movimientos';
   }
 }

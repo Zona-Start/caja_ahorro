@@ -23,7 +23,7 @@ import {
   manualRateSchema,
 } from '../schemas/exchange-rates.schema';
 
-export function ExchangeRatesForm() {
+export function ExchangeRatesForm({ onSuccess }: { onSuccess?: () => void }) {
   const { mutate: saveRate, isPending } = useSetManualRateMutation();
 
   const form = useForm<ManualRateInput>({
@@ -36,7 +36,16 @@ export function ExchangeRatesForm() {
   });
 
   const onSubmit = (data: ManualRateInput) => {
-    saveRate(data);
+    saveRate(data, {
+      onSuccess: () => {
+        form.reset({
+          currencyCode: data.currencyCode,
+          rate: undefined as unknown as number,
+          rateDate: undefined,
+        });
+        onSuccess?.();
+      },
+    });
   };
 
   return (
@@ -113,7 +122,9 @@ export function ExchangeRatesForm() {
                     }
                     onChange={(e) =>
                       field.onChange(
-                        e.target.value ? new Date(e.target.value) : undefined,
+                        e.target.value
+                          ? new Date(`${e.target.value}T12:00:00`)
+                          : undefined,
                       )
                     }
                     disabled={isPending}
@@ -127,7 +138,7 @@ export function ExchangeRatesForm() {
 
         <div className="flex justify-end">
           <Button type="submit" disabled={isPending}>
-            {isPending ? 'Fijando tasa...' : 'Fijar tasa'}
+            {isPending ? 'Guardando...' : 'Guardar tasa'}
           </Button>
         </div>
       </form>

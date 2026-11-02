@@ -31,6 +31,7 @@ const routes: RouteConfig = [
       'contabilidad/reportes',
       'routes/dashboard/accounting/accounting-reports.tsx',
     ),
+    route('contabilidad/sudeca', 'routes/dashboard/accounting/sudeca.tsx'),
     route(
       'contabilidad/asientos-contables',
       'routes/dashboard/accounting/accounting-entries.tsx',

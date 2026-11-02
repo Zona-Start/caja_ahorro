@@ -55,18 +55,9 @@ export function buildGeneralLedgerTableContent(
     content.push({
       stack: [
         {
-          columns: [
-            {
-              text: `${account.accountCode} - ${account.accountName}`,
-              bold: true,
-              fontSize: 10,
-            },
-            {
-              text: `Saldo Inicial: ${fmt(account.initialBalance)}`,
-              alignment: 'right',
-              fontSize: 9,
-            },
-          ],
+          text: `${account.accountCode} - ${account.accountName}`,
+          bold: true,
+          fontSize: 10,
           margin: [0, 8, 0, 4],
         },
         {

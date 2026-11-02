@@ -1,7 +1,15 @@
 import { useAccountingCycles } from '@/features/accounting/accounting-cycles/hooks/use-accounting-cycles-query';
 import { AssociateSearchSelect } from '@/features/savings/partners/associates/components/associate-search-select';
+import { useToastSystem } from '@/hooks/use-toast-system';
+import { apiClient } from '@/lib/api-client';
 import { Button } from '@repo/shadcn/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@repo/shadcn/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@repo/shadcn/dropdown-menu';
 import { Label } from '@repo/shadcn/label';
 import { SelectSearchable } from '@repo/shadcn/select-searchable';
 import { Skeleton } from '@repo/shadcn/skeleton';
@@ -13,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from '@repo/shadcn/table';
-import { Download, Printer } from 'lucide-react';
+import { Download, FileSpreadsheet, FileText, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { useAssociatesBalance } from '../hooks/use-accounting-reports-query';
 
@@ -23,6 +31,12 @@ export function AssociatesBalanceReport() {
   const [selectedCycleId, setSelectedCycleId] = useState<string>('');
   const [selectedAssociateId, setSelectedAssociateId] = useState<string>('');
   const [page, setPage] = useState(1);
+  const [isExporting, setIsExporting] = useState(false);
+  const {
+    error: showError,
+    success: showSuccess,
+    info: showInfo,
+  } = useToastSystem();
 
   const { data, isLoading } = useAssociatesBalance({
     accountingCycleId: selectedCycleId,
@@ -31,18 +45,50 @@ export function AssociatesBalanceReport() {
     limit: 20,
   });
 
-  const handlePrint = () => {
-    window.print();
+  const handleExportPdf = async () => {
+    if (!selectedCycleId || isExporting) return;
+
+    setIsExporting(true);
+    try {
+      const params = new URLSearchParams();
+      params.set('accountingCycleId', selectedCycleId);
+      if (selectedAssociateId) params.set('associateId', selectedAssociateId);
+
+      const response = await apiClient.get(
+        `/accounting-reports/associates-balance/pdf?${params.toString()}`,
+        { responseType: 'blob' },
+      );
+
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `balance_asociados_${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+
+      showSuccess('Balance de Asociados exportado a PDF');
+    } catch (error) {
+      showError({
+        title: 'Error al exportar PDF',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'No se pudo generar el PDF del Balance de Asociados.',
+      });
+    } finally {
+      setIsExporting(false);
+    }
   };
 
-  const handleExport = () => {
-    const params = new URLSearchParams();
-    if (selectedCycleId) params.append('accountingCycleId', selectedCycleId);
-    if (selectedAssociateId) params.append('associateId', selectedAssociateId);
-    window.open(
-      `/accounting-reports/associates-balance/pdf?${params.toString()}`,
-      '_blank',
-    );
+  const handleExportExcel = () => {
+    showInfo({
+      title: 'Excel en construcción',
+      description:
+        'El reporte en Excel del Balance de Asociados estará disponible próximamente.',
+    });
   };
 
   return (
@@ -85,21 +131,35 @@ export function AssociatesBalanceReport() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Balance de Asociados</CardTitle>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={handlePrint}>
-              <Printer className="h-4 w-4 mr-2" />
-              Imprimir
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExport}
-              disabled={!selectedCycleId}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Exportar PDF
-            </Button>
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!selectedCycleId || isExporting}
+              >
+                {isExporting ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4 mr-2" />
+                )}
+                {isExporting ? 'Generando...' : 'Exportar'}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={handleExportPdf}
+                disabled={isExporting}
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                PDF (.pdf)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportExcel}>
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                Excel (.xlsx)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </CardHeader>
         <CardContent>
           {!selectedCycleId ? (

@@ -9,11 +9,13 @@ import { BalanceSheetService } from './services/balance-sheet.service';
 import { GeneralLedgerService } from './services/general-ledger.service';
 import { IncomeStatementService } from './services/income-statement.service';
 import { JournalBookService } from './services/journal-book.service';
+import { SudecaService } from './services/sudeca.service';
 import { TrialBalanceService } from './services/trial-balance.service';
+import { SudecaController } from './sudeca.controller';
 
 @Module({
   imports: [DrizzleModule, TenantContextModule, PdfGeneratorModule],
-  controllers: [AccountingReportsController],
+  controllers: [AccountingReportsController, SudecaController],
   providers: [
     JournalBookService,
     GeneralLedgerService,
@@ -22,6 +24,7 @@ import { TrialBalanceService } from './services/trial-balance.service';
     IncomeStatementService,
     AssociatesBalanceService,
     AccountBalanceService,
+    SudecaService,
   ],
 })
 export class AccountingReportsModule {}

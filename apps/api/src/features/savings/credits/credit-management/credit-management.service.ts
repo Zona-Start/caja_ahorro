@@ -221,6 +221,40 @@ export class CreditManagementService {
     return schedule;
   }
 
+  // ─── Asiento contable de aprobación de crédito ─────────────────────────
+
+  /**
+   * Roles configurados en la regla contable del tipo de crédito. Algunos tipos
+   * usan CREDIT_WITHHOLDING y otros LOAN_WITHHOLDING para la contrapartida.
+   */
+  private async getCreditRuleRoles(
+    tenantId: string,
+    referenceValue: string,
+  ): Promise<Set<string>> {
+    const rows = await this.db
+      .select({ role: schema.accountingRuleDetails.accountRole })
+      .from(schema.accountingRules)
+      .leftJoin(
+        schema.accountingRuleDetails,
+        eq(schema.accountingRuleDetails.ruleId, schema.accountingRules.id),
+      )
+      .where(
+        and(
+          eq(schema.accountingRules.tenantId, tenantId),
+          eq(schema.accountingRules.category, 'SAVINGS_BANK'),
+          eq(schema.accountingRules.operationType, 'CREDIT_TYPE'),
+          eq(schema.accountingRules.referenceValue, referenceValue),
+          eq(schema.accountingRules.isActive, true),
+        ),
+      );
+
+    return new Set(
+      rows
+        .map((row) => row.role)
+        .filter((role): role is string => Boolean(role)),
+    );
+  }
+
   // ─── BÚSQUEDA DE ASOCIADO ───────────────────────────────────────────────
 
   async searchAssociate(tenantId: string | null, cedula: string) {
@@ -1250,12 +1284,73 @@ export class CreditManagementService {
       const typeDesc = creditType?.name ?? 'CRÉDITO';
       const associateDesc =
         `${assoc?.cedula ?? ''} ${assoc?.fullname ?? ''}`.trim();
-      const requestedAmountNum = toBs(Number(requestedAmount));
       const expensesAmountNum = toBs(Number(credit.expensesAmount ?? 0));
       const totalInterestNum = toBs(Number(credit.totalInterest ?? 0));
+      const creditCurrency = (credit.currencyCode ??
+        CurrencyCodeEnum.VES) as CurrencyCodeEnum;
+
+      // Partida doble del crédito. Todos los importes se envían ya convertidos
+      // a Bs a la tasa de creación (rate = 1 para VES):
+      //   Débito  CREDIT_PRINCIPAL      = capital financiado (capital + gastos)
+      //   Crédito retención             = capital neto desembolsado
+      //   Crédito comisiones            = gastos administrativos
+      // El interés no se reconoce aquí: se reconoce en cada pago. Así la cuenta
+      // de capital queda en cero al terminar el crédito y el asiento cuadra.
+      const totalPayableCurrency = Number(credit.totalPayable ?? 0);
+      const totalInterestCurrency = Number(credit.totalInterest ?? 0);
+      let financedCapitalCurrency =
+        totalPayableCurrency - totalInterestCurrency;
+      if (!(financedCapitalCurrency > 0)) {
+        const haberesInCreditCurrency =
+          creditExchangeRate > 0
+            ? Number(credit.haberesPayment ?? 0) / creditExchangeRate
+            : 0;
+        financedCapitalCurrency = Math.max(
+          0,
+          Number(requestedAmount) -
+            haberesInCreditCurrency -
+            Number(credit.directPayment ?? 0) +
+            Number(credit.expensesAmount ?? 0),
+        );
+      }
+
+      const financedCapitalBase = toBs(financedCapitalCurrency);
+      const roles = await this.getCreditRuleRoles(tenantId, typeDesc);
+      const withholdingRole = roles.has('LOAN_WITHHOLDING')
+        ? 'LOAN_WITHHOLDING'
+        : 'CREDIT_WITHHOLDING';
+      const feeRole = roles.has('SERVICE_FEE_INCOME')
+        ? 'SERVICE_FEE_INCOME'
+        : roles.has('LOAN_INTEREST_INCOME')
+          ? 'LOAN_INTEREST_INCOME'
+          : null;
+      const feeAmount = feeRole ? expensesAmountNum : 0;
+      const withholdingAmount = +(financedCapitalBase - feeAmount).toFixed(2);
+
+      const amounts: Record<string, number> = {
+        CREDIT_PRINCIPAL: financedCapitalBase,
+        [withholdingRole]: withholdingAmount,
+      };
+      const descriptions: Record<string, string> = {
+        CREDIT_PRINCIPAL: typeDesc,
+        [withholdingRole]: `Desembolso ${typeDesc} ${associateDesc}`.trim(),
+      };
+      const globalDescriptions: Record<string, string> = {
+        CREDIT_PRINCIPAL: typeDesc,
+        [withholdingRole]: `Desembolso ${typeDesc}`,
+      };
+
+      if (feeRole) {
+        amounts[feeRole] = feeAmount;
+        descriptions[feeRole] = `Gastos Administrativos ${typeDesc}`;
+        globalDescriptions[feeRole] = `Gastos Administrativos ${typeDesc}`;
+      }
 
       this.logger.log(
-        `[approve] Generando asiento contable crédito ${id} - principal=${requestedAmountNum} gastos=${expensesAmountNum} interes=${totalInterestNum}`,
+        `[approve] Asiento crédito ${id} (${creditCurrency}): ` +
+          `capital=${financedCapitalBase} gastos=${expensesAmountNum} ` +
+          `retencion=${withholdingAmount} interes_diferido=${totalInterestNum} ` +
+          `roles=${[...roles].join(',')}`,
       );
 
       const accountingEntry =
@@ -1276,23 +1371,11 @@ export class CreditManagementService {
             items: [
               {
                 associateId: associateId,
-                amounts: {
-                  CREDIT_PRINCIPAL: requestedAmountNum,
-                  LOAN_INTEREST_INCOME: expensesAmountNum,
-                  CREDIT_WITHHOLDING: totalInterestNum,
-                },
-                descriptions: {
-                  CREDIT_PRINCIPAL: typeDesc,
-                  LOAN_INTEREST_INCOME: `Gastos Administrativos ${typeDesc}`,
-                  CREDIT_WITHHOLDING: associateDesc,
-                },
+                amounts,
+                descriptions,
               },
             ],
-            globalDescriptions: {
-              CREDIT_PRINCIPAL: typeDesc,
-              SERVICE_FEE_INCOME: `Gastos Administrativos ${typeDesc}`,
-              LOAN_INTEREST_INCOME: associateDesc,
-            },
+            globalDescriptions,
           },
           undefined,
         );

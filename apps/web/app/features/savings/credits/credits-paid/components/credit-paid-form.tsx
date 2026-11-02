@@ -2,6 +2,7 @@
 
 import { IconWrapper } from '@/components/icon-wrapper';
 import { AlertModal } from '@/components/shared/alert-modal';
+import { apiClient } from '@/lib/api-client';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@repo/shadcn/button';
 import {
@@ -32,8 +33,10 @@ import { Textarea } from '@repo/shadcn/textarea';
 import { CreditCard } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { apiClient } from '@/lib/api-client';
-import { CREDIT_PAYMENT_TYPES, PAYMENT_METHOD } from '../schemas/credits-paid-options';
+import {
+  CREDIT_PAYMENT_TYPES,
+  PAYMENT_METHOD,
+} from '../schemas/credits-paid-options';
 import {
   creditPaymentFormSchema,
   type CreditPaymentFormValues,
@@ -54,7 +57,10 @@ export function CreditPaidForm({
   onCancel,
 }: CreditPaidFormProps) {
   const [isConfirmOpen, setConfirmOpen] = useState(false);
-  const [dataToSubmit, setDataToSubmit] = useState<Record<string, unknown> | null>(null);
+  const [dataToSubmit, setDataToSubmit] = useState<Record<
+    string,
+    unknown
+  > | null>(null);
   const [rate, setRate] = useState(0);
 
   const creditCurrency = selectedAssociate?.creditCurrencyCode || 'VES';
@@ -67,6 +73,7 @@ export function CreditPaidForm({
       return;
     }
     let cancelled = false;
+    setRate(0);
     apiClient
       .get(`/core/exchange-rates/latest/${creditCurrency}`)
       .then((res) => {
@@ -95,6 +102,7 @@ export function CreditPaidForm({
   });
 
   const handleSubmit = form.handleSubmit((data) => {
+    if (isForeign && rate <= 0) return;
     const payload = {
       ...data,
       amount: Number(data.amount),
@@ -150,7 +158,11 @@ export function CreditPaidForm({
             </span>
             {isForeign && rate > 0 && (
               <span className="ml-1 text-xs text-muted-foreground">
-                (≈ {(Number(totalPending) * rate).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs)
+                (≈{' '}
+                {(Number(totalPending) * rate).toLocaleString('es-VE', {
+                  minimumFractionDigits: 2,
+                })}{' '}
+                Bs)
               </span>
             )}
           </CardDescription>
@@ -221,13 +233,44 @@ export function CreditPaidForm({
                       </FormControl>
                       {isForeign && rate > 0 && Number(field.value) > 0 && (
                         <p className="text-xs text-muted-foreground">
-                          ≈ {(Number(field.value) * rate).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs
+                          ≈{' '}
+                          {(Number(field.value) * rate).toLocaleString(
+                            'es-VE',
+                            { minimumFractionDigits: 2 },
+                          )}{' '}
+                          Bs
                         </p>
                       )}
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+
+                {isForeign && (
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="credit-exchange-rate"
+                      className="text-sm font-medium leading-none"
+                    >
+                      Tasa aplicada ({creditCurrency})
+                    </label>
+                    <Input
+                      id="credit-exchange-rate"
+                      type="number"
+                      step="0.0001"
+                      min="0"
+                      value={rate || ''}
+                      onChange={(e) => {
+                        const value = Number(e.target.value);
+                        setRate(Number.isFinite(value) ? value : 0);
+                      }}
+                      disabled={isSubmitting}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Editable para pagos de fechas anteriores.
+                    </p>
+                  </div>
+                )}
 
                 <FormField
                   control={form.control}
@@ -282,10 +325,7 @@ export function CreditPaidForm({
                     <FormItem>
                       <FormLabel>Referencia de Transacción</FormLabel>
                       <FormControl>
-                        <Input
-                          {...field}
-                          placeholder="Número de referencia"
-                        />
+                        <Input {...field} placeholder="Número de referencia" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -320,7 +360,10 @@ export function CreditPaidForm({
                 >
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={isSubmitting}>
+                <Button
+                  type="submit"
+                  disabled={isSubmitting || (isForeign && rate <= 0)}
+                >
                   {isSubmitting ? 'Registrando...' : 'Registrar Pago'}
                 </Button>
               </div>

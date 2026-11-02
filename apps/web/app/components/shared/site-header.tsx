@@ -1,8 +1,4 @@
 import { navGroups } from '@/constants/navegations';
-import { Fragment } from 'react';
-import { Link, useLocation } from 'react-router';
-import { Separator } from '@repo/shadcn/separator';
-import { SidebarTrigger } from '@repo/shadcn/sidebar';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -11,13 +7,18 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@repo/shadcn/breadcrumb';
+import { Separator } from '@repo/shadcn/separator';
+import { SidebarTrigger } from '@repo/shadcn/sidebar';
+import { Fragment, useEffect, useState } from 'react';
+import { Link, useLocation } from 'react-router';
 import { ExchangeRateBadge } from './exchange-rate-badge';
 import { ModeToggle } from './mode-toggle';
 
 type Crumb = { label: string; href?: string };
 
-function buildBreadcrumbs(pathname: string): Crumb[] {
+function buildBreadcrumbs(pathname: string, search = ''): Crumb[] {
   const crumbs: Crumb[] = [{ label: 'Inicio', href: '/dashboard' }];
+  const currentTab = new URLSearchParams(search).get('tab');
 
   if (pathname === '/dashboard') return crumbs;
 
@@ -32,9 +33,16 @@ function buildBreadcrumbs(pathname: string): Crumb[] {
       }
 
       if (item.items?.length) {
-        const subItem = item.items.find(
+        const candidates = item.items.filter(
           (sub) => sub.href.split('?')[0] === pathname,
         );
+        const subItem =
+          candidates.find((sub) => {
+            const query = sub.href.split('?')[1];
+            if (!query) return true;
+            return new URLSearchParams(query).get('tab') === currentTab;
+          }) ?? candidates[0];
+
         if (subItem) {
           crumbs.push({ label: group.label });
           if (item.href && item.href !== '#') {
@@ -54,7 +62,25 @@ function buildBreadcrumbs(pathname: string): Crumb[] {
 
 export function SiteHeader() {
   const location = useLocation();
-  const crumbs = buildBreadcrumbs(location.pathname);
+  const [search, setSearch] = useState(location.search);
+
+  useEffect(() => {
+    setSearch(location.search);
+  }, [location.search]);
+
+  useEffect(() => {
+    const syncSearch = () => setSearch(window.location.search);
+
+    window.addEventListener('popstate', syncSearch);
+    window.addEventListener('accounting-report-tab-change', syncSearch);
+
+    return () => {
+      window.removeEventListener('popstate', syncSearch);
+      window.removeEventListener('accounting-report-tab-change', syncSearch);
+    };
+  }, []);
+
+  const crumbs = buildBreadcrumbs(location.pathname, search);
 
   return (
     <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">

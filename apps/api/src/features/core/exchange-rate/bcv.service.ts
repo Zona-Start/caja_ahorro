@@ -1,8 +1,8 @@
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
-import { exchangeRates } from '@/database/schema';
+import { currencies, exchangeRates } from '@/database/schema';
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { and } from 'drizzle-orm';
+import { and, asc, desc, eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 
 @Injectable()
@@ -15,6 +15,43 @@ export class BcvService implements OnModuleInit {
 
   onModuleInit() {
     this.logger.log('BCV Service initialized');
+  }
+
+  /**
+   * Histórico completo de tasas guardadas, paginado y ordenado de la más
+   * reciente a la más antigua. Se usa en el área de Tasas de Cambio.
+   */
+  async findAll(page = 1, limit = 10) {
+    const safePage = Math.max(1, page);
+    const safeLimit = Math.max(1, limit);
+    const offset = (safePage - 1) * safeLimit;
+
+    const data = await this.db
+      .select({
+        id: exchangeRates.id,
+        currencyCode: currencies.code,
+        currencyName: currencies.name,
+        rate: exchangeRates.rate,
+        rateDate: exchangeRates.rateDate,
+        source: exchangeRates.source,
+        isAutomatic: exchangeRates.isAutomatic,
+        fetchedAt: exchangeRates.fetchedAt,
+      })
+      .from(exchangeRates)
+      .innerJoin(currencies, eq(currencies.id, exchangeRates.currencyId))
+      .orderBy(desc(exchangeRates.rateDate), asc(currencies.code))
+      .limit(safeLimit)
+      .offset(offset);
+
+    const total = await this.db.$count(exchangeRates);
+
+    return {
+      data,
+      total,
+      page: safePage,
+      limit: safeLimit,
+      totalPages: Math.ceil(total / safeLimit),
+    };
   }
 
   /**

@@ -1,25 +1,19 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { AlertModal } from '@/components/shared/alert-modal';
+import { useBankAccountAll } from '@/features/banks/bank-account/hooks/use-bank-account-query';
+import { useToastSystem } from '@/hooks/use-toast-system';
+import { apiClient } from '@/lib/api-client';
+import { QUERY_KEYS } from '@/lib/query-keys';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useQueryClient } from '@tanstack/react-query';
+import { Button } from '@repo/shadcn/button';
+import { CustomCalendar } from '@repo/shadcn/custom-calendar';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@repo/shadcn/dialog';
-import { Button } from '@repo/shadcn/button';
-import { Input } from '@repo/shadcn/input';
-import { Separator } from '@repo/shadcn/separator';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@repo/shadcn/select';
 import {
   Form,
   FormControl,
@@ -28,30 +22,38 @@ import {
   FormLabel,
   FormMessage,
 } from '@repo/shadcn/form';
-import { CustomCalendar } from '@repo/shadcn/custom-calendar';
-import { AlertModal } from '@/components/shared/alert-modal';
-import { apiClient } from '@/lib/api-client';
+import { Input } from '@repo/shadcn/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@repo/shadcn/select';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   AlertCircle,
+  BadgeDollarSign,
+  Check,
+  DollarSign,
+  HandCoins,
+  Landmark,
+  ListChecks,
   Loader2,
   Search,
   User,
   X,
-  Check,
-  BadgeDollarSign,
-  DollarSign,
-  ListChecks,
-  HandCoins,
-  Landmark,
 } from 'lucide-react';
-import { QUERY_KEYS } from '@/lib/query-keys';
-import { useToastSystem } from '@/hooks/use-toast-system';
-import { useBankAccountAll } from '@/features/banks/bank-account/hooks/use-bank-account-query';
-import { useAssociatesByCedula } from '../hooks/use-loans-paid-query';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { useCreateLoanPaymentMutation } from '../hooks/use-loans-paid-mutation';
-import { PAYMENT_METHOD, LOAN_PAYMENT_TYPES } from '../schemas/loans-paid-options';
-import { loanPaymentSchema, type LoanPayment } from '../schemas/loans-paid.schema';
+import { useAssociatesByCedula } from '../hooks/use-loans-paid-query';
 import type { AssociatesLoan } from '../schemas/individual-load-api-schema';
+import { PAYMENT_METHOD } from '../schemas/loans-paid-options';
+import {
+  loanPaymentSchema,
+  type LoanPayment,
+} from '../schemas/loans-paid.schema';
 
 const PAYMENT_MODE_LABELS: Record<string, string> = {
   next_installment: 'Pagar cuota correspondiente',
@@ -82,7 +84,8 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
   const [submittedSearchTerm, setSubmittedSearchTerm] = useState('');
   const [shouldFetch, setShouldFetch] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [selectedAssociate, setSelectedAssociate] = useState<AssociatesLoan | null>(null);
+  const [selectedAssociate, setSelectedAssociate] =
+    useState<AssociatesLoan | null>(null);
   const [paymentMode, setPaymentMode] = useState<string>('next_installment');
   const [customAmount, setCustomAmount] = useState<string>('');
   const [paymentRate, setPaymentRate] = useState(0);
@@ -138,7 +141,10 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
     };
   }, [open, isForeignLoan, loanCurrency]);
   const pendingSchedule = useMemo(
-    () => schedule.filter((s) => s.quotaStatus === 'PENDING' || s.quotaStatus === 'PARTIAL'),
+    () =>
+      schedule.filter(
+        (s) => s.quotaStatus === 'PENDING' || s.quotaStatus === 'PARTIAL',
+      ),
     [schedule],
   );
   const paidSchedule = useMemo(
@@ -154,7 +160,9 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
   const calculationResult = useMemo(() => {
     if (!selectedAssociate?.loanId || paymentMode === 'next_installment') {
       if (!nextInstallment) return { amount: 0, count: 0 };
-      const due = Number(nextInstallment.quotaAmount) - (Number(nextInstallment.paidAmount) || 0);
+      const due =
+        Number(nextInstallment.quotaAmount) -
+        (Number(nextInstallment.paidAmount) || 0);
       return { amount: Math.max(0, due), count: 1 };
     }
     if (paymentMode === 'full_debt') {
@@ -178,7 +186,14 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
       return { amount: val, count };
     }
     return { amount: 0, count: 0 };
-  }, [paymentMode, customAmount, selectedAssociate, pendingSchedule, nextInstallment, pendingTotal]);
+  }, [
+    paymentMode,
+    customAmount,
+    selectedAssociate,
+    pendingSchedule,
+    nextInstallment,
+    pendingTotal,
+  ]);
 
   useEffect(() => {
     if (shouldFetch && !isLoading) {
@@ -204,7 +219,17 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
         }
       }
     }
-  }, [data, isError, error, isLoading, shouldFetch, submittedSearchTerm, setSelectedAssociate, form, toast]);
+  }, [
+    data,
+    isError,
+    error,
+    isLoading,
+    shouldFetch,
+    submittedSearchTerm,
+    setSelectedAssociate,
+    form,
+    toast,
+  ]);
 
   useEffect(() => {
     if (!open) return;
@@ -220,10 +245,16 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
   const handleSearch = useCallback(() => {
     const trimmed = searchTerm.trim();
     if (!trimmed) {
-      toast.warning({ title: 'Campo vacío', description: 'Ingrese una cédula.' });
+      toast.warning({
+        title: 'Campo vacío',
+        description: 'Ingrese una cédula.',
+      });
       return;
     }
-    queryClient.removeQueries({ queryKey: QUERY_KEYS.loansPaid.byCedula(''), exact: false });
+    queryClient.removeQueries({
+      queryKey: QUERY_KEYS.loansPaid.byCedula(''),
+      exact: false,
+    });
     setSelectedAssociate(null);
     form.reset();
     setPaymentMode('next_installment');
@@ -240,7 +271,10 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
     setPaymentMode('next_installment');
     setCustomAmount('');
     form.reset();
-    queryClient.removeQueries({ queryKey: QUERY_KEYS.loansPaid.byCedula(''), exact: false });
+    queryClient.removeQueries({
+      queryKey: QUERY_KEYS.loansPaid.byCedula(''),
+      exact: false,
+    });
   }, [form, queryClient]);
 
   const handleClose = () => {
@@ -249,6 +283,7 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
   };
 
   const handleSubmit = form.handleSubmit((data) => {
+    if (isForeignLoan && paymentRate <= 0) return;
     const payload = {
       ...data,
       amount: calculationResult.amount,
@@ -261,7 +296,9 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
           title: 'Pago exitoso',
           description: `Pago registrado para ${selectedAssociate?.fullname}`,
         });
-        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.loansPaid.lists() });
+        queryClient.invalidateQueries({
+          queryKey: QUERY_KEYS.loansPaid.lists(),
+        });
         handleClear();
         onClose();
       },
@@ -275,10 +312,19 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
     setConfirmOpen(false);
   });
 
-  const isFormDisabled = !selectedAssociate?.loanId || isSaving || calculationResult.amount <= 0;
+  const isFormDisabled =
+    !selectedAssociate?.loanId ||
+    isSaving ||
+    calculationResult.amount <= 0 ||
+    (isForeignLoan && paymentRate <= 0);
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) handleClose();
+      }}
+    >
       <DialogContent className="sm:max-w-[720px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -288,13 +334,32 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
 
         <div className="space-y-4 mt-4">
           {selectedAssociate?.loanId && isForeignLoan && (
-            <div className="rounded-lg border border-amber-300 bg-amber-50/60 dark:bg-amber-900/10 p-3 text-xs">
-              Moneda del préstamo: <strong>{loanCurrency}</strong> · Tasa del
-              día: <strong>{paymentRate ? paymentRate.toFixed(2) : '…'}</strong>{' '}
-              · Total pendiente en Bs:{' '}
-              <strong>
-                {formatCurrency(pendingTotal * (paymentRate || 0))}
-              </strong>
+            <div className="rounded-lg border border-amber-300 bg-amber-50/60 dark:bg-amber-900/10 p-3 text-xs space-y-2">
+              <div>
+                Moneda del préstamo: <strong>{loanCurrency}</strong> · Total
+                pendiente en Bs:{' '}
+                <strong>
+                  {formatCurrency(pendingTotal * (paymentRate || 0))}
+                </strong>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span>Tasa aplicada ({loanCurrency}):</span>
+                <Input
+                  type="number"
+                  step="0.0001"
+                  min="0"
+                  className="h-8 w-32"
+                  value={paymentRate || ''}
+                  onChange={(e) => {
+                    const value = Number(e.target.value);
+                    setPaymentRate(Number.isFinite(value) ? value : 0);
+                  }}
+                  disabled={isSaving}
+                />
+                <span className="text-muted-foreground">
+                  Editable para pagos de fechas anteriores.
+                </span>
+              </div>
             </div>
           )}
           {/* ── SECCIÓN 1: BÚSQUEDA ── */}
@@ -303,13 +368,22 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
               <Input
                 placeholder="Ingrese Cédula del Asociado..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                onChange={(e) =>
+                  setSearchTerm(e.target.value.replace(/\D/g, '').slice(0, 8))
+                }
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 disabled={isLoading}
               />
             </div>
-            <Button onClick={handleSearch} disabled={!searchTerm.trim() || isLoading}>
-              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+            <Button
+              onClick={handleSearch}
+              disabled={!searchTerm.trim() || isLoading}
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Search className="h-4 w-4" />
+              )}
               <span className="ml-2">Buscar</span>
             </Button>
           </div>
@@ -317,14 +391,18 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
           {isLoading && !selectedAssociate && (
             <div className="text-center py-8">
               <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-              <p className="text-muted-foreground mt-2">Validando asociado...</p>
+              <p className="text-muted-foreground mt-2">
+                Validando asociado...
+              </p>
             </div>
           )}
 
           {!isLoading && !selectedAssociate && !error && (
             <div className="text-center py-6 border border-dashed rounded-lg">
               <User className="h-8 w-8 mx-auto text-muted-foreground/50" />
-              <p className="text-muted-foreground mt-2 text-sm">Ningún asociado seleccionado</p>
+              <p className="text-muted-foreground mt-2 text-sm">
+                Ningún asociado seleccionado
+              </p>
             </div>
           )}
 
@@ -341,20 +419,28 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
               </Button>
               <div className="flex items-center gap-2 mb-2">
                 <User className="h-4 w-4 text-[#2EA640]" />
-                <span className="text-sm font-semibold uppercase">DATOS DEL ASOCIADO</span>
+                <span className="text-sm font-semibold uppercase">
+                  DATOS DEL ASOCIADO
+                </span>
               </div>
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div>
                   <span className="text-muted-foreground">Nombre:</span>{' '}
-                  <span className="font-medium">{selectedAssociate.fullname}</span>
+                  <span className="font-medium">
+                    {selectedAssociate.fullname}
+                  </span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Cédula:</span>{' '}
-                  <span className="font-medium font-mono">{selectedAssociate.cedula}</span>
+                  <span className="font-medium font-mono">
+                    {selectedAssociate.cedula}
+                  </span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Nro. Cuenta:</span>{' '}
-                  <span className="font-medium font-mono">{selectedAssociate.accountNumber || '—'}</span>
+                  <span className="font-medium font-mono">
+                    {selectedAssociate.accountNumber || '—'}
+                  </span>
                 </div>
               </div>
             </div>
@@ -365,7 +451,9 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
             <div className="rounded-lg border border-[#305AD9]/30 bg-[#305AD9]/5 p-4 space-y-2">
               <div className="flex items-center gap-2 mb-2">
                 <BadgeDollarSign className="h-4 w-4 text-[#305AD9]" />
-                <span className="text-sm font-semibold uppercase">PRÉSTAMO ACTIVO</span>
+                <span className="text-sm font-semibold uppercase">
+                  PRÉSTAMO ACTIVO
+                </span>
               </div>
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div>
@@ -376,7 +464,9 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
                 </div>
                 <div>
                   <span className="text-muted-foreground">Tipo:</span>{' '}
-                  <span className="font-medium">{selectedAssociate.loanType || '—'}</span>
+                  <span className="font-medium">
+                    {selectedAssociate.loanType || '—'}
+                  </span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Monto Original:</span>{' '}
@@ -387,7 +477,9 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
                   </span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Saldo Pendiente:</span>{' '}
+                  <span className="text-muted-foreground">
+                    Saldo Pendiente:
+                  </span>{' '}
                   <span className="font-mono font-bold text-[#3098F2]">
                     {formatCurrency(pendingTotal)} {loanCurrencyLabel}
                   </span>
@@ -400,12 +492,20 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
                 </div>
                 {nextInstallment && (
                   <div>
-                    <span className="text-muted-foreground">Próxima Cuota:</span>{' '}
+                    <span className="text-muted-foreground">
+                      Próxima Cuota:
+                    </span>{' '}
                     <span className="font-mono font-semibold text-[#2EA640]">
-                      {formatCurrency(Number(nextInstallment.quotaAmount) - (Number(nextInstallment.paidAmount) || 0))} {loanCurrencyLabel}
+                      {formatCurrency(
+                        Number(nextInstallment.quotaAmount) -
+                          (Number(nextInstallment.paidAmount) || 0),
+                      )}{' '}
+                      {loanCurrencyLabel}
                     </span>
                     {Number(nextInstallment.paidAmount) > 0 && (
-                      <span className="text-xs text-muted-foreground ml-1">(restante)</span>
+                      <span className="text-xs text-muted-foreground ml-1">
+                        (restante)
+                      </span>
                     )}
                   </div>
                 )}
@@ -418,7 +518,9 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
             <div className="rounded-lg border p-3">
               <div className="flex items-center gap-2 mb-2">
                 <ListChecks className="h-4 w-4" />
-                <span className="text-sm font-semibold uppercase">TABLA DE AMORTIZACIÓN ({loanCurrencyLabel})</span>
+                <span className="text-sm font-semibold uppercase">
+                  TABLA DE AMORTIZACIÓN ({loanCurrencyLabel})
+                </span>
               </div>
               <div className="max-h-48 overflow-y-auto">
                 <table className="w-full text-xs">
@@ -434,21 +536,27 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
                   </thead>
                   <tbody>
                     {schedule.map((inst) => {
-                      const isNext = inst.quotaNumber === nextInstallment?.quotaNumber;
-                      const isPending = inst.quotaStatus === 'PENDING' || inst.quotaStatus === 'PARTIAL';
+                      const isNext =
+                        inst.quotaNumber === nextInstallment?.quotaNumber;
+                      const isPending =
+                        inst.quotaStatus === 'PENDING' ||
+                        inst.quotaStatus === 'PARTIAL';
                       return (
                         <tr
                           key={inst.quotaNumber}
-                          className={`border-b last:border-0 ${inst.quotaStatus === 'PAID'
-                            ? 'bg-[#2EA640]/10 dark:bg-[#2EA640]/20'
-                            : isPending && isNext
-                              ? 'bg-yellow-50 dark:bg-yellow-900/30'
-                              : ''
-                            }`}
+                          className={`border-b last:border-0 ${
+                            inst.quotaStatus === 'PAID'
+                              ? 'bg-[#2EA640]/10 dark:bg-[#2EA640]/20'
+                              : isPending && isNext
+                                ? 'bg-yellow-50 dark:bg-yellow-900/30'
+                                : ''
+                          }`}
                         >
                           <td className="py-1">{inst.quotaNumber}</td>
                           <td className="py-1">
-                            {new Date(inst.quotaDate).toLocaleDateString('es-VE')}
+                            {new Date(inst.quotaDate).toLocaleDateString(
+                              'es-VE',
+                            )}
                           </td>
                           <td className="py-1 text-right font-mono">
                             {formatCurrency(Number(inst.quotaAmount))}
@@ -457,18 +565,22 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
                             {formatCurrency(Number(inst.paidAmount || 0))}
                           </td>
                           <td className="py-1 text-right font-mono">
-                            {formatCurrency(Number(inst.principalBalancePending || 0))}
+                            {formatCurrency(
+                              Number(inst.principalBalancePending || 0),
+                            )}
                           </td>
                           <td className="py-1">
                             <span
-                              className={`rounded-full px-1.5 py-0.5 text-[10px] ${inst.quotaStatus === 'PAID'
-                                ? 'bg-[#2EA640]/20 text-[#2EA640]'
-                                : inst.quotaStatus === 'PARTIAL'
-                                  ? 'bg-yellow-100 text-yellow-700'
-                                  : 'bg-muted text-muted-foreground'
-                                }`}
+                              className={`rounded-full px-1.5 py-0.5 text-[10px] ${
+                                inst.quotaStatus === 'PAID'
+                                  ? 'bg-[#2EA640]/20 text-[#2EA640]'
+                                  : inst.quotaStatus === 'PARTIAL'
+                                    ? 'bg-yellow-100 text-yellow-700'
+                                    : 'bg-muted text-muted-foreground'
+                              }`}
                             >
-                              {STATUS_LABELS[inst.quotaStatus] || inst.quotaStatus}
+                              {STATUS_LABELS[inst.quotaStatus] ||
+                                inst.quotaStatus}
                             </span>
                           </td>
                         </tr>
@@ -500,19 +612,33 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
                   <FormLabel className="text-xs uppercase font-bold text-muted-foreground">
                     Modalidad de Pago *
                   </FormLabel>
-                  <Select value={paymentMode} onValueChange={(v) => { setPaymentMode(v); setCustomAmount(''); }}>
+                  <Select
+                    value={paymentMode}
+                    onValueChange={(v) => {
+                      setPaymentMode(v);
+                      setCustomAmount('');
+                    }}
+                  >
                     <SelectTrigger className="w-full h-9">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="next_installment">
-                        Pagar cuota correspondiente ({nextInstallment ? formatCurrency(Number(nextInstallment.quotaAmount) - (Number(nextInstallment.paidAmount) || 0)) : '0,00'} {loanCurrencyLabel})
+                        Pagar cuota correspondiente (
+                        {nextInstallment
+                          ? formatCurrency(
+                              Number(nextInstallment.quotaAmount) -
+                                (Number(nextInstallment.paidAmount) || 0),
+                            )
+                          : '0,00'}{' '}
+                        {loanCurrencyLabel})
                       </SelectItem>
                       <SelectItem value="custom_amount">
                         Pagar monto personalizado
                       </SelectItem>
                       <SelectItem value="full_debt">
-                        Pagar deuda total ({formatCurrency(pendingTotal)} {loanCurrencyLabel})
+                        Pagar deuda total ({formatCurrency(pendingTotal)}{' '}
+                        {loanCurrencyLabel})
                       </SelectItem>
                     </SelectContent>
                   </Select>
@@ -534,37 +660,51 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
                   </div>
                 )}
 
-                {calculationResult.count > 0 && calculationResult.amount > 0 && (
-                  <div className="rounded-lg border border-[#2EA640]/30 bg-[#2EA640]/5 p-3 space-y-1 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Cuotas a pagar:</span>
-                      <span className="font-medium">
-                        {calculationResult.count} de {pendingSchedule.length}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Monto total del pago:</span>
-                      <span className="font-mono font-bold text-[#2EA640]">
-                        {formatCurrency(calculationResult.amount)} {loanCurrencyLabel}
-                      </span>
-                    </div>
-                    {isForeignLoan && (
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>Equivalente en Bs (tasa {paymentRate ? paymentRate.toFixed(2) : '…'}):</span>
-                        <span className="font-mono">
-                          {formatCurrency(calculationResult.amount * (paymentRate || 0))} Bs
+                {calculationResult.count > 0 &&
+                  calculationResult.amount > 0 && (
+                    <div className="rounded-lg border border-[#2EA640]/30 bg-[#2EA640]/5 p-3 space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">
+                          Cuotas a pagar:
+                        </span>
+                        <span className="font-medium">
+                          {calculationResult.count} de {pendingSchedule.length}
                         </span>
                       </div>
-                    )}
-                  </div>
-                )}
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">
+                          Monto total del pago:
+                        </span>
+                        <span className="font-mono font-bold text-[#2EA640]">
+                          {formatCurrency(calculationResult.amount)}{' '}
+                          {loanCurrencyLabel}
+                        </span>
+                      </div>
+                      {isForeignLoan && (
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>
+                            Equivalente en Bs (tasa{' '}
+                            {paymentRate ? paymentRate.toFixed(2) : '…'}):
+                          </span>
+                          <span className="font-mono">
+                            {formatCurrency(
+                              calculationResult.amount * (paymentRate || 0),
+                            )}{' '}
+                            Bs
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
-                {paymentMode === 'custom_amount' && calculationResult.amount === 0 && customAmount && (
-                  <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
-                    <AlertCircle className="h-4 w-4 shrink-0" />
-                    <span>El monto ingresado no cubre ninguna cuota.</span>
-                  </div>
-                )}
+                {paymentMode === 'custom_amount' &&
+                  calculationResult.amount === 0 &&
+                  customAmount && (
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+                      <AlertCircle className="h-4 w-4 shrink-0" />
+                      <span>El monto ingresado no cubre ninguna cuota.</span>
+                    </div>
+                  )}
 
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
@@ -601,7 +741,7 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
                           disabled={isSaving}
                         >
                           <FormControl>
-                            <SelectTrigger className='w-full'>
+                            <SelectTrigger className="w-full">
                               <SelectValue placeholder="Seleccionar" />
                             </SelectTrigger>
                           </FormControl>
@@ -636,14 +776,15 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
                           disabled={isSaving}
                         >
                           <FormControl>
-                            <SelectTrigger className='w-full'>
+                            <SelectTrigger className="w-full">
                               <SelectValue placeholder="Seleccionar cuenta" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
                             {bankAccounts.map((a) => (
                               <SelectItem key={a.id} value={a.id}>
-                                {a.accountName || 'Cuenta'} - {a.accountNumber?.slice(-4)}
+                                {a.accountName || 'Cuenta'} -{' '}
+                                {a.accountNumber?.slice(-4)}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -696,13 +837,20 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
 
                 <div className="flex items-center justify-between pt-2">
                   <div>
-                    <span className="text-xs text-muted-foreground">Total a Pagar</span>
+                    <span className="text-xs text-muted-foreground">
+                      Total a Pagar
+                    </span>
                     <p className="text-xl font-black text-primary">
-                      {formatCurrency(calculationResult.amount)} {loanCurrencyLabel}
+                      {formatCurrency(calculationResult.amount)}{' '}
+                      {loanCurrencyLabel}
                     </p>
                     {isForeignLoan && (
                       <p className="text-xs text-muted-foreground">
-                        ≈ {formatCurrency(calculationResult.amount * (paymentRate || 0))} Bs
+                        ≈{' '}
+                        {formatCurrency(
+                          calculationResult.amount * (paymentRate || 0),
+                        )}{' '}
+                        Bs
                       </p>
                     )}
                   </div>
@@ -715,14 +863,11 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
                     >
                       Cancelar
                     </Button>
-                    <Button
-                      type="submit"
-                      size="sm"
-                      disabled={isFormDisabled}
-                    >
+                    <Button type="submit" size="sm" disabled={isFormDisabled}>
                       {isSaving ? (
                         <>
-                          <Loader2 className="mr-1 h-4 w-4 animate-spin" /> Procesando...
+                          <Loader2 className="mr-1 h-4 w-4 animate-spin" />{' '}
+                          Procesando...
                         </>
                       ) : (
                         <>

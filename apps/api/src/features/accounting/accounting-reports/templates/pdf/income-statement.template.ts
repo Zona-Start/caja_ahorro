@@ -38,13 +38,25 @@ function indent(level: number): string {
   return '  '.repeat(Math.max(0, level - 1));
 }
 
-function flattenAccounts(
-  accounts: AccountNode[],
-): { text: string; balance: string; isBold: boolean }[] {
-  const result: { text: string; balance: string; isBold: boolean }[] = [];
+function flattenAccounts(accounts: AccountNode[]): {
+  code: string;
+  name: string;
+  level: number;
+  balance: string;
+  isBold: boolean;
+}[] {
+  const result: {
+    code: string;
+    name: string;
+    level: number;
+    balance: string;
+    isBold: boolean;
+  }[] = [];
   for (const a of accounts) {
     result.push({
-      text: indent(a.level) + `${a.accountCode} ${a.accountName}`,
+      code: a.accountCode,
+      name: a.accountName,
+      level: a.level,
       balance: fmt(a.balance),
       isBold: a.level <= 2,
     });
@@ -62,12 +74,14 @@ export function buildIncomeStatementTableContent(
   const expenseRows = flattenAccounts(data.expenses.accounts);
 
   const allRevenueRows: any[] = revenueRows.map((a) => [
-    { text: a.text, bold: a.isBold },
+    { text: a.code, bold: a.isBold },
+    { text: indent(a.level) + a.name, bold: a.isBold },
     { text: a.balance, alignment: 'right', bold: a.isBold },
   ]);
 
   const allExpenseRows: any[] = expenseRows.map((a) => [
-    { text: a.text, bold: a.isBold },
+    { text: a.code, bold: a.isBold },
+    { text: indent(a.level) + a.name, bold: a.isBold },
     { text: a.balance, alignment: 'right', bold: a.isBold },
   ]);
 
@@ -75,15 +89,18 @@ export function buildIncomeStatementTableContent(
     { text: 'INGRESOS', style: 'tableHeader', margin: [0, 0, 0, 4] },
     {
       table: {
-        widths: ['*', 70],
+        headerRows: 1,
+        widths: [80, '*', 90],
         body: [
           [
+            { text: 'Código', style: 'tableHeader' },
             { text: 'Cuenta', style: 'tableHeader' },
             { text: 'Monto', style: 'tableHeader', alignment: 'right' },
           ],
           ...allRevenueRows,
           [
-            { text: 'TOTAL INGRESOS', bold: true },
+            { text: 'TOTAL INGRESOS', bold: true, colSpan: 2 },
+            {},
             { text: fmt(data.revenue.total), alignment: 'right', bold: true },
           ],
         ],
@@ -94,15 +111,18 @@ export function buildIncomeStatementTableContent(
     { text: 'EGRESOS', style: 'tableHeader', margin: [0, 0, 0, 4] },
     {
       table: {
-        widths: ['*', 70],
+        headerRows: 1,
+        widths: [80, '*', 90],
         body: [
           [
+            { text: 'Código', style: 'tableHeader' },
             { text: 'Cuenta', style: 'tableHeader' },
             { text: 'Monto', style: 'tableHeader', alignment: 'right' },
           ],
           ...allExpenseRows,
           [
-            { text: 'TOTAL EGRESOS', bold: true },
+            { text: 'TOTAL EGRESOS', bold: true, colSpan: 2 },
+            {},
             { text: fmt(data.expenses.total), alignment: 'right', bold: true },
           ],
         ],

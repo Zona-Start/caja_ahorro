@@ -165,9 +165,32 @@ export class JournalBookService {
     });
 
     const content = buildJournalBookTableContent(data);
+    const dateLabel = this.buildFilterDateLabel(
+      filters.startDate,
+      filters.endDate,
+    );
+
     return this.pdfService.generateReport('LIBRO DIARIO', content, {
       orientation: 'landscape',
       pageSize: 'LETTER',
+      tenantId,
+      subtitle: dateLabel,
     });
+  }
+
+  private buildFilterDateLabel(startDate?: string, endDate?: string) {
+    const format = (value?: string) => {
+      if (!value) return null;
+      const [year, month, day] = value.split('-');
+      return year && month && day ? `${day}/${month}/${year}` : value;
+    };
+
+    const from = format(startDate);
+    const to = format(endDate);
+
+    if (from && to) return `Del ${from} al ${to}`;
+    if (from) return `Desde ${from}`;
+    if (to) return `Hasta ${to}`;
+    return 'Todos los movimientos';
   }
 }

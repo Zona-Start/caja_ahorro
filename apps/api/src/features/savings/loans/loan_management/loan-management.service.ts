@@ -984,9 +984,9 @@ export class LoanManagementService {
       // El préstamo está en su moneda; el desembolso y la contabilidad van en Bs.
       // Solo se considera en divisa si tiene una tasa guardada (nuevos préstamos).
       const hasStoredRate = Number(loan.exchangeRate ?? 0) > 0;
-      const loanCurrency = (hasStoredRate && loan.currencyCode
-        ? loan.currencyCode
-        : 'VES') as CurrencyCodeEnum;
+      const loanCurrency = (
+        hasStoredRate && loan.currencyCode ? loan.currencyCode : 'VES'
+      ) as CurrencyCodeEnum;
       let disbursementRate =
         loanCurrency === CurrencyCodeEnum.VES
           ? 1
@@ -1005,8 +1005,12 @@ export class LoanManagementService {
       const requestedAmountBase = +(requestedAmount * disbursementRate).toFixed(
         2,
       );
-      const expensesAmountBase = +(expensesAmount * disbursementRate).toFixed(2);
-      const loanPrincipalAmount = +(requestedAmountBase + expensesAmountBase).toFixed(2);
+      const expensesAmountBase = +(expensesAmount * disbursementRate).toFixed(
+        2,
+      );
+      const loanPrincipalAmount = +(
+        requestedAmountBase + expensesAmountBase
+      ).toFixed(2);
       const bankAccountAmount = requestedAmountBase;
 
       const [updatedLoan] = await trx
@@ -1095,6 +1099,15 @@ export class LoanManagementService {
       const typeDesc = accountingParams.loanTypeName;
       const associateDesc =
         `${accountingParams.associateCedula} ${accountingParams.associateFullname}`.trim();
+
+      this.logger.log(
+        `[disburse] Asiento préstamo ${accountingParams.loanId} ` +
+          `(${accountingParams.currencyCode}): ` +
+          `principal=${accountingParams.loanPrincipalAmount} ` +
+          `banco=${accountingParams.bankAccountAmount} ` +
+          `gastos=${accountingParams.expensesAmount} ` +
+          `total=${accountingParams.requestedAmount}`,
+      );
 
       const result = await this.accountingEntriesService.createAutomaticEntry(
         tenantId,
@@ -2189,9 +2202,7 @@ export class LoanManagementService {
         const amount = Number(loan.amount ?? loan.approvedAmount ?? 0);
         const rate = Number(loan.exchangeRate ?? 0);
         const isForeign =
-          !!loan.currencyCode &&
-          loan.currencyCode !== 'VES' &&
-          rate > 0;
+          !!loan.currencyCode && loan.currencyCode !== 'VES' && rate > 0;
         // El lote bancario siempre se maneja en Bs: se usa la tasa de creación
         // del préstamo para valorar el monto a desembolsar.
         return {

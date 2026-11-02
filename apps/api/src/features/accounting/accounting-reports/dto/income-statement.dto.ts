@@ -2,7 +2,9 @@ import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
 
 export const IncomeStatementSchema = z.object({
-  accountingCycleId: z.string().uuid().optional(),
+  accountingCycleId: z.string().uuid(),
+  startDate: z.string().min(1),
+  endDate: z.string().min(1),
   detailLevel: z.coerce.number().int().min(1).max(5).optional().default(3),
   format: z.enum(['json', 'pdf']).optional().default('json'),
 });

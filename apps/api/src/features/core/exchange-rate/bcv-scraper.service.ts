@@ -7,7 +7,6 @@ import { ConfigService } from '@nestjs/config';
 import { Cron } from '@nestjs/schedule';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-import { and, eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as https from 'https';
 
@@ -129,7 +128,12 @@ export class BcvScraperService implements OnModuleInit {
     }
   }
 
-  async fetchAndSaveRates(): Promise<void> {
+  async fetchAndSaveRates(): Promise<{
+    rateDate: string;
+    dates: string[];
+    rates: { USD: string; EUR: string };
+    currencies: string[];
+  }> {
     this.logger.log('Scraping exchange rates from BCV website...');
 
     const html = await this.fetchHtml();
@@ -148,22 +152,42 @@ export class BcvScraperService implements OnModuleInit {
       where: (c, { inArray }) => inArray(c.code, ['USD', 'EUR']),
     });
 
-    const usdCurrency = currencies.find((c) => c.code === 'USD');
-    const eurCurrency = currencies.find((c) => c.code === 'EUR');
+    const currencyByCode = new Map(currencies.map((c) => [c.code, c]));
 
-    if (!usdCurrency || !eurCurrency) {
-      this.logger.warn('USD or EUR currency not found in database');
-      return;
+    const targets = (
+      [
+        { code: 'USD' as const, rate: rates.USD },
+        { code: 'EUR' as const, rate: rates.EUR },
+      ] as const
+    ).flatMap((target) => {
+      const currency = currencyByCode.get(target.code);
+      return currency ? [{ ...target, currencyId: currency.id }] : [];
+    });
+
+    if (targets.length === 0) {
+      throw new Error(
+        'No se encontraron las monedas USD/EUR en la base de datos para guardar las tasas del BCV.',
+      );
     }
 
     for (const date of datesToSave) {
-      await this.insertRateIfMissing(usdCurrency.id, rates.USD, date);
-      await this.insertRateIfMissing(eurCurrency.id, rates.EUR, date);
+      for (const target of targets) {
+        await this.upsertRate(target.currencyId, target.rate, date);
+      }
     }
 
+    const savedDates = datesToSave.map((date) => this.toDateString(date));
+
     this.logger.log(
-      `Exchange rates saved for ${datesToSave.length} day(s): USD=${rates.USD}, EUR=${rates.EUR}`,
+      `Exchange rates saved/updated for ${savedDates.join(', ')}: USD=${rates.USD}, EUR=${rates.EUR}`,
     );
+
+    return {
+      rateDate: this.toDateString(fechaValor),
+      dates: savedDates,
+      rates,
+      currencies: targets.map((target) => target.code),
+    };
   }
 
   private async fetchHtml(): Promise<string> {
@@ -316,30 +340,12 @@ export class BcvScraperService implements OnModuleInit {
     return [fechaValor];
   }
 
-  private async insertRateIfMissing(
+  private async upsertRate(
     currencyId: string,
     rate: string,
     date: Date,
   ): Promise<void> {
     const rateDate = this.toDateString(date);
-
-    const existing = await this.db
-      .select({ id: exchangeRates.id })
-      .from(exchangeRates)
-      .where(
-        and(
-          eq(exchangeRates.currencyId, currencyId),
-          eq(exchangeRates.rateDate, rateDate),
-        ),
-      )
-      .limit(1);
-
-    if (existing.length > 0) {
-      this.logger.debug(
-        `Rate already exists for currency ${currencyId} on ${rateDate}, skipping`,
-      );
-      return;
-    }
 
     await this.db
       .insert(exchangeRates)
@@ -351,8 +357,14 @@ export class BcvScraperService implements OnModuleInit {
         isAutomatic: true,
         fetchedAt: new Date(),
       })
-      .onConflictDoNothing({
+      .onConflictDoUpdate({
         target: [exchangeRates.currencyId, exchangeRates.rateDate],
+        set: {
+          rate,
+          source: 'BCV',
+          isAutomatic: true,
+          fetchedAt: new Date(),
+        },
       });
   }
 

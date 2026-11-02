@@ -622,6 +622,37 @@ export const navGroups: NavGroup[] = [
           },
         ],
       },
+      {
+        label: 'Sudeca',
+        href: '#',
+        icon: Scale,
+        items: [
+          {
+            label: 'Situación Financiera',
+            href: '/dashboard/contabilidad/sudeca?tab=financial-situation',
+            requiresPermission: {
+              resource: 'accounting:reports',
+              action: 'read',
+            },
+          },
+          {
+            label: 'Estado de Resultado',
+            href: '/dashboard/contabilidad/sudeca?tab=income-statement',
+            requiresPermission: {
+              resource: 'accounting:reports',
+              action: 'read',
+            },
+          },
+          {
+            label: 'Balance de Comprobación',
+            href: '/dashboard/contabilidad/sudeca?tab=trial-balance',
+            requiresPermission: {
+              resource: 'accounting:reports',
+              action: 'read',
+            },
+          },
+        ],
+      },
     ],
   },
 
@@ -821,7 +852,7 @@ export const navGroups: NavGroup[] = [
         href: '/dashboard/configuracion/tasas-de-cambio',
         icon: RefreshCw,
         requiresPermission: {
-          resource: 'system:global',
+          resource: 'system:currencies',
           action: 'read',
         },
       },
