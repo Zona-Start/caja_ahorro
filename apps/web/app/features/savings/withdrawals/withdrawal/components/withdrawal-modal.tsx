@@ -1,9 +1,19 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useForm, useWatch } from 'react-hook-form';
+import { AlertModal } from '@/components/shared/alert-modal';
+import { exchangeRatesService } from '@/features/core/exchange-rates/services/exchange-rates-service';
+import { useProductsQuery } from '@/features/inventory/products/hooks/use-products-queries';
+import { type Product } from '@/features/inventory/products/schemas/products.schema';
+import { ProductsService } from '@/features/inventory/products/services/products-service';
+import { useSuppliersAllQuery } from '@/features/purchasing/suppliers/hooks/use-suppliers-queries';
+import { CATEGORY_OPTIONS } from '@/features/purchasing/suppliers/schemas/suppliers-options';
+import { useToastSystem } from '@/hooks/use-toast-system';
+import { formatCurrency } from '@/lib/format-utils';
+import { QUERY_KEYS } from '@/lib/query-keys';
+import { useAuthStore } from '@/stores/auth.store';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useQueryClient } from '@tanstack/react-query';
+import { Button } from '@repo/shadcn/button';
+import { CustomCalendar } from '@repo/shadcn/components/ui/custom-calendar';
 import {
   Dialog,
   DialogContent,
@@ -11,16 +21,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@repo/shadcn/dialog';
-import { Button } from '@repo/shadcn/button';
-import { Input } from '@repo/shadcn/input';
-import { Separator } from '@repo/shadcn/separator';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@repo/shadcn/select';
 import {
   Form,
   FormControl,
@@ -29,45 +29,47 @@ import {
   FormLabel,
   FormMessage,
 } from '@repo/shadcn/form';
-import { CustomCalendar } from '@repo/shadcn/components/ui/custom-calendar';
+import { Input } from '@repo/shadcn/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@repo/shadcn/select';
+import { Separator } from '@repo/shadcn/separator';
 import { Switch } from '@repo/shadcn/switch';
-import { AlertModal } from '@/components/shared/alert-modal';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   AlertCircle,
-  Loader2,
-  Search,
-  User,
-  X,
-  Wallet,
-  CheckCircle2,
-  XCircle,
-  Plus,
-  Package,
   Building2,
+  CheckCircle2,
   Info,
+  Loader2,
+  Package,
+  Plus,
+  Search,
   Send,
   ShieldAlert,
+  User,
+  Wallet,
+  X,
+  XCircle,
 } from 'lucide-react';
-import { formatCurrency } from '@/lib/format-utils';
-import { QUERY_KEYS } from '@/lib/query-keys';
-import { useToastSystem } from '@/hooks/use-toast-system';
-import { useAuthStore } from '@/stores/auth.store';
-import { useBankAccountAllQuery } from '@/features/banks/bank-account/hooks/use-bank-account-query';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
 import {
   useAssociateWithdrawalRequestQuery,
-  useWithdrawalTypesQuery,
   useSaveWithdrawalMutation,
+  useWithdrawalTypesQuery,
 } from '../hooks/use-withdrawal-query';
-import { type WithdrawalType } from '../schemas/withdrawal-api-response';
 import { type AssociatesWithdrawal } from '../schemas/individual-withdrawal-api-schema';
+import { type WithdrawalType } from '../schemas/withdrawal-api-response';
 import { PAYMENT_METHOD } from '../schemas/withdrawal-options';
-import { withdrawalSchema, type Withdrawal } from '../schemas/withdrawal.schema';
-import { useSuppliersAllQuery } from '@/features/purchasing/suppliers/hooks/use-suppliers-queries';
-import { exchangeRatesService } from '@/features/core/exchange-rates/services/exchange-rates-service';
-import { useProductsQuery } from '@/features/inventory/products/hooks/use-products-queries';
-import { ProductsService } from '@/features/inventory/products/services/products-service';
-import { type Product } from '@/features/inventory/products/schemas/products.schema';
-import { CATEGORY_OPTIONS } from '@/features/purchasing/suppliers/schemas/suppliers-options';
+import {
+  withdrawalSchema,
+  type Withdrawal,
+} from '../schemas/withdrawal.schema';
 
 interface Props {
   open: boolean;
@@ -124,10 +126,13 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
   const [showProductSearch, setShowProductSearch] = useState(false);
   const [productSearchQuery, setProductSearchQuery] = useState('');
 
-  const { data: associateResp, isFetching: searching, isError: searchError } =
-    useAssociateWithdrawalRequestQuery(submittedSearch, {
-      enabled: shouldFetch && !!submittedSearch.trim(),
-    });
+  const {
+    data: associateResp,
+    isFetching: searching,
+    isError: searchError,
+  } = useAssociateWithdrawalRequestQuery(submittedSearch, {
+    enabled: shouldFetch && !!submittedSearch.trim(),
+  });
 
   const associate = associateResp as AssociatesWithdrawal | null | undefined;
 
@@ -135,7 +140,8 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
   const withdrawalTypes = typesResp?.data ?? [];
   const { data: suppliers } = useSuppliersAllQuery(open);
   const { data: productsData } = useProductsQuery({ page: 1, limit: 200 });
-  const products: Product[] = (productsData?.data as Product[] | undefined) ?? [];
+  const products: Product[] =
+    (productsData?.data as Product[] | undefined) ?? [];
 
   const servicesCategory = CATEGORY_OPTIONS.find(
     (c) => c.label === 'Servicios',
@@ -156,22 +162,26 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
     defaultValues: WITHDRAWAL_DEFAULTS,
   });
 
-  const watchTypeId = useWatch({ control: form.control, name: 'withdrawalTypeId' });
-  const watchAmount = useWatch({ control: form.control, name: 'requestedAmount' }) || 0;
+  const watchTypeId = useWatch({
+    control: form.control,
+    name: 'withdrawalTypeId',
+  });
+  const watchAmount =
+    useWatch({ control: form.control, name: 'requestedAmount' }) || 0;
   const allowWithActiveLoanOrCredit =
     useWatch({ control: form.control, name: 'allowWithActiveLoanOrCredit' }) ??
     false;
   const allowWithPayrollCredit =
-    useWatch({ control: form.control, name: 'allowWithPayrollCredit' }) ?? false;
+    useWatch({ control: form.control, name: 'allowWithPayrollCredit' }) ??
+    false;
   const allowEarlyWithdrawal =
     useWatch({ control: form.control, name: 'allowEarlyWithdrawal' }) ?? false;
   const allowExceedAvailableBalance =
     useWatch({ control: form.control, name: 'allowExceedAvailableBalance' }) ??
     false;
 
-  const selectedType = withdrawalTypes.find(
-    (t) => t.id === watchTypeId,
-  ) as WithdrawalType | undefined;
+  const selectedType = withdrawalTypes.find((t) => t.id === watchTypeId) as
+    WithdrawalType | undefined;
 
   const hasAutoAmount =
     selectedType?.isInternalInventory || selectedType?.isHouseComercial;
@@ -180,17 +190,20 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
     () =>
       items.reduce(
         (sum, it) =>
-          sum + (it.type === 'product' ? (it.totalCost ?? 0) : (it.subtotal ?? 0)),
+          sum +
+          (it.type === 'product' ? (it.totalCost ?? 0) : (it.subtotal ?? 0)),
         0,
       ),
     [items],
   );
 
-  const effectiveAmount = hasAutoAmount ? itemsTotal : (watchAmount || 0);
+  const effectiveAmount = hasAutoAmount ? itemsTotal : watchAmount || 0;
 
   const feePct = Number(selectedType?.administrativeFeePercentage ?? 0);
   const fee = (effectiveAmount * feePct) / 100;
-  const disbursed = effectiveAmount - fee;
+  const disbursed = hasAutoAmount
+    ? effectiveAmount + fee
+    : effectiveAmount - fee;
 
   const rules = useMemo(() => {
     const r: { canSave: boolean; messages: { text: string; ok: boolean }[] } = {
@@ -199,7 +212,10 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
     };
     if (!associate || !associate.associateAccountId) {
       r.canSave = false;
-      r.messages.push({ text: 'Asociado no encontrado o sin cuenta', ok: false });
+      r.messages.push({
+        text: 'Asociado no encontrado o sin cuenta',
+        ok: false,
+      });
       return r;
     }
     if (round2(effectiveAmount) > round2(associate.available80)) {
@@ -342,14 +358,25 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
     if (shouldFetch && !searching) {
       setShouldFetch(false);
       if (searchError) {
-        toast.info({ title: 'Asociado no encontrado', description: `Cédula: ${submittedSearch}` });
+        toast.info({
+          title: 'Asociado no encontrado',
+          description: `Cédula: ${submittedSearch}`,
+        });
         form.setValue('associateAccountId', '');
       } else if (associate?.associateAccountId) {
         form.setValue('associateAccountId', associate.associateAccountId);
         form.setValue('requestedAmount', round2(associate.available80));
       }
     }
-  }, [searching, shouldFetch, searchError, associate, submittedSearch, form, toast]);
+  }, [
+    searching,
+    shouldFetch,
+    searchError,
+    associate,
+    submittedSearch,
+    form,
+    toast,
+  ]);
 
   useEffect(() => {
     if (hasAutoAmount) form.setValue('requestedAmount', effectiveAmount);
@@ -358,10 +385,15 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
   const handleSearch = useCallback(() => {
     const trimmed = searchQuery.trim();
     if (!trimmed) {
-      toast.warning({ title: 'Campo vacío', description: 'Ingrese una cédula.' });
+      toast.warning({
+        title: 'Campo vacío',
+        description: 'Ingrese una cédula.',
+      });
       return;
     }
-    queryClient.removeQueries({ queryKey: [...QUERY_KEYS.withdrawals.all, 'request'] });
+    queryClient.removeQueries({
+      queryKey: [...QUERY_KEYS.withdrawals.all, 'request'],
+    });
     setItems([]);
     setSupplierId('');
     form.reset(WITHDRAWAL_DEFAULTS);
@@ -377,44 +409,43 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
     setShowProductSearch(false);
     setProductSearchQuery('');
     form.reset(WITHDRAWAL_DEFAULTS);
-    queryClient.removeQueries({ queryKey: [...QUERY_KEYS.withdrawals.all, 'request'] });
+    queryClient.removeQueries({
+      queryKey: [...QUERY_KEYS.withdrawals.all, 'request'],
+    });
   }, [queryClient, form]);
 
-  const addProductItem = useCallback(
-    async (productId: string) => {
-      const p = await ProductsService.getById(productId);
-      // El precio de venta está fijado en divisa; el monto en Bs se calcula a la
-      // tasa del día de la operación.
-      const currency = (p.currencyCode ?? 'VES') as 'VES' | 'USD' | 'EUR';
-      const saleReference = p.salePrice ?? p.bsPriceAmount ?? p.supplierCost ?? 0;
-      let factor = 1;
-      if (currency !== 'VES') {
-        try {
-          const latest = await exchangeRatesService.getLatest(currency);
-          const rate = Number(latest.rate);
-          if (Number.isFinite(rate) && rate > 0) factor = rate;
-        } catch {
-          factor = 1;
-        }
+  const addProductItem = useCallback(async (productId: string) => {
+    const p = await ProductsService.getById(productId);
+    // El precio de venta está fijado en divisa; el monto en Bs se calcula a la
+    // tasa del día de la operación.
+    const currency = (p.currencyCode ?? 'VES') as 'VES' | 'USD' | 'EUR';
+    const saleReference = p.salePrice ?? p.bsPriceAmount ?? p.supplierCost ?? 0;
+    let factor = 1;
+    if (currency !== 'VES') {
+      try {
+        const latest = await exchangeRatesService.getLatest(currency);
+        const rate = Number(latest.rate);
+        if (Number.isFinite(rate) && rate > 0) factor = rate;
+      } catch {
+        factor = 1;
       }
-      const unitCost = +(saleReference * factor).toFixed(2);
-      setItems((prev) => [
-        ...prev,
-        {
-          type: 'product',
-          productId,
-          productName: p.name,
-          unitPrice: saleReference,
-          currencyCode: currency,
-          exchangeRate: factor,
-          unitCost,
-          quantity: 1,
-          totalCost: unitCost,
-        },
-      ]);
-    },
-    [],
-  );
+    }
+    const unitCost = +(saleReference * factor).toFixed(2);
+    setItems((prev) => [
+      ...prev,
+      {
+        type: 'product',
+        productId,
+        productName: p.name,
+        unitPrice: saleReference,
+        currencyCode: currency,
+        exchangeRate: factor,
+        unitCost,
+        quantity: 1,
+        totalCost: unitCost,
+      },
+    ]);
+  }, []);
 
   const addServiceItem = useCallback(() => {
     setItems((prev) => [
@@ -423,34 +454,31 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
     ]);
   }, []);
 
-  const updateItem = useCallback(
-    (index: number, field: string, value: any) => {
-      setItems((prev) => {
-        const updated = [...prev];
-        const item = { ...updated[index] } as any;
-        item[field] = value;
-        if (item.type === 'product') {
-          // Al cambiar el precio en divisa se recalcula el monto en Bs a la tasa
-          // del día; el subtotal siempre = cantidad × precio en Bs.
-          if (field === 'unitPrice')
-            item.unitCost = +(
-              (item.unitPrice || 0) * (item.exchangeRate || 1)
-            ).toFixed(2);
-          if (
-            field === 'quantity' ||
-            field === 'unitCost' ||
-            field === 'unitPrice'
-          )
-            item.totalCost = (item.quantity || 0) * (item.unitCost || 0);
-        }
-        if (item.type === 'service' && (field === 'quantity' || field === 'cost'))
-          item.subtotal = (item.quantity || 0) * (item.cost || 0);
-        updated[index] = item;
-        return updated;
-      });
-    },
-    [],
-  );
+  const updateItem = useCallback((index: number, field: string, value: any) => {
+    setItems((prev) => {
+      const updated = [...prev];
+      const item = { ...updated[index] } as any;
+      item[field] = value;
+      if (item.type === 'product') {
+        // Al cambiar el precio en divisa se recalcula el monto en Bs a la tasa
+        // del día; el subtotal siempre = cantidad × precio en Bs.
+        if (field === 'unitPrice')
+          item.unitCost = +(
+            (item.unitPrice || 0) * (item.exchangeRate || 1)
+          ).toFixed(2);
+        if (
+          field === 'quantity' ||
+          field === 'unitCost' ||
+          field === 'unitPrice'
+        )
+          item.totalCost = (item.quantity || 0) * (item.unitCost || 0);
+      }
+      if (item.type === 'service' && (field === 'quantity' || field === 'cost'))
+        item.subtotal = (item.quantity || 0) * (item.cost || 0);
+      updated[index] = item;
+      return updated;
+    });
+  }, []);
 
   const removeItem = useCallback((index: number) => {
     setItems((prev) => prev.filter((_, i) => i !== index));
@@ -496,13 +524,24 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
 
     saveWithdrawal(payload, {
       onSuccess: () => {
-        toast.success({ title: 'Solicitud de retiro', description: 'Creada exitosamente para ' + associate.fullname });
-        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.withdrawals.lists() });
+        toast.success({
+          title: 'Solicitud de retiro',
+          description: 'Creada exitosamente para ' + associate.fullname,
+        });
+        queryClient.invalidateQueries({
+          queryKey: QUERY_KEYS.withdrawals.lists(),
+        });
         handleClear();
         onOpenChange(false);
       },
       onError: (err: unknown) => {
-        toast.error({ title: 'Error', description: (err as any)?.response?.data?.message ?? (err as Error)?.message ?? 'No se pudo crear el retiro' });
+        toast.error({
+          title: 'Error',
+          description:
+            (err as any)?.response?.data?.message ??
+            (err as Error)?.message ??
+            'No se pudo crear el retiro',
+        });
       },
     });
     setConfirmOpen(false);
@@ -517,7 +556,12 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) handleClose();
+      }}
+    >
       <DialogContent className="sm:max-w-[650px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -535,13 +579,22 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
               <Input
                 placeholder="Ingrese Cédula del Asociado..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                onChange={(e) =>
+                  setSearchQuery(e.target.value.replace(/\D/g, '').slice(0, 8))
+                }
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 disabled={searching}
               />
             </div>
-            <Button onClick={handleSearch} disabled={!searchQuery.trim() || searching}>
-              {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+            <Button
+              onClick={handleSearch}
+              disabled={!searchQuery.trim() || searching}
+            >
+              {searching ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Search className="h-4 w-4" />
+              )}
               <span className="ml-2">Buscar</span>
             </Button>
           </div>
@@ -549,7 +602,9 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
           {searching && !associate && (
             <div className="text-center py-8">
               <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-              <p className="text-muted-foreground mt-2">Validando asociado...</p>
+              <p className="text-muted-foreground mt-2">
+                Validando asociado...
+              </p>
             </div>
           )}
 
@@ -569,26 +624,38 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
               </h3>
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Nombre y Apellido:</span>
-                  <span className="text-sm font-bold">{associate.fullname}</span>
+                  <span className="text-sm text-muted-foreground">
+                    Nombre y Apellido:
+                  </span>
+                  <span className="text-sm font-bold">
+                    {associate.fullname}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Cédula:</span>
                   <span className="text-sm font-mono">{associate.cedula}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Nro. Cuenta:</span>
-                  <span className="text-sm font-mono font-semibold">{associate.accountNumber}</span>
+                  <span className="text-sm text-muted-foreground">
+                    Nro. Cuenta:
+                  </span>
+                  <span className="text-sm font-mono font-semibold">
+                    {associate.accountNumber}
+                  </span>
                 </div>
                 <Separator />
                 <div className="flex justify-between items-end">
-                  <span className="text-sm text-muted-foreground">Saldo Total:</span>
+                  <span className="text-sm text-muted-foreground">
+                    Saldo Total:
+                  </span>
                   <span className="text-lg font-black text-primary">
                     {formatCurrency(associate.balance || 0, 'VES')}
                   </span>
                 </div>
                 <div className="flex justify-between items-end">
-                  <span className="text-sm text-muted-foreground">80% Disponible:</span>
+                  <span className="text-sm text-muted-foreground">
+                    80% Disponible:
+                  </span>
                   <span className="text-lg font-black text-[#305AD9]">
                     {formatCurrency(associate.available80 || 0, 'VES')}
                   </span>
@@ -597,24 +664,24 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
                 {(associate.hasActiveLoan ||
                   associate.hasActiveCredit ||
                   associate.hasPayrollCredit) && (
-                    <div className="flex flex-wrap gap-2 pt-2">
-                      {associate.hasActiveLoan && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 text-destructive px-2.5 py-0.5 text-xs font-medium">
-                          <XCircle className="h-3 w-3" /> Préstamo Activo
-                        </span>
-                      )}
-                      {associate.hasActiveCredit && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 text-destructive px-2.5 py-0.5 text-xs font-medium">
-                          <XCircle className="h-3 w-3" /> Crédito Activo
-                        </span>
-                      )}
-                      {associate.hasPayrollCredit && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 text-destructive px-2.5 py-0.5 text-xs font-medium">
-                          <XCircle className="h-3 w-3" /> Credinomina Activo
-                        </span>
-                      )}
-                    </div>
-                  )}
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    {associate.hasActiveLoan && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 text-destructive px-2.5 py-0.5 text-xs font-medium">
+                        <XCircle className="h-3 w-3" /> Préstamo Activo
+                      </span>
+                    )}
+                    {associate.hasActiveCredit && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 text-destructive px-2.5 py-0.5 text-xs font-medium">
+                        <XCircle className="h-3 w-3" /> Crédito Activo
+                      </span>
+                    )}
+                    {associate.hasPayrollCredit && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 text-destructive px-2.5 py-0.5 text-xs font-medium">
+                        <XCircle className="h-3 w-3" /> Credinomina Activo
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -622,7 +689,9 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
           {!searching && !associate && !searchError && (
             <div className="text-center py-6 border border-dashed rounded-lg">
               <User className="h-8 w-8 mx-auto text-muted-foreground/50" />
-              <p className="text-muted-foreground mt-2 text-sm">Ningún asociado seleccionado</p>
+              <p className="text-muted-foreground mt-2 text-sm">
+                Ningún asociado seleccionado
+              </p>
             </div>
           )}
 
@@ -685,21 +754,35 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <div>
                         <span className="text-muted-foreground">% Máximo:</span>{' '}
-                        <span className="font-medium">{selectedType.withdrawalPercentage ?? 100}%</span>
+                        <span className="font-medium">
+                          {selectedType.withdrawalPercentage ?? 100}%
+                        </span>
                       </div>
                       <div>
-                        <span className="text-muted-foreground">% Gasto Admin:</span>{' '}
-                        <span className="font-medium">{selectedType.administrativeFeePercentage ?? 0}%</span>
+                        <span className="text-muted-foreground">
+                          % Gasto Admin:
+                        </span>{' '}
+                        <span className="font-medium">
+                          {selectedType.administrativeFeePercentage ?? 0}%
+                        </span>
                       </div>
                       <div>
-                        <span className="text-muted-foreground">Inventario:</span>{' '}
-                        <span className={`font-medium ${selectedType.isInternalInventory ? 'text-[#2EA640]' : 'text-muted-foreground'}`}>
+                        <span className="text-muted-foreground">
+                          Inventario:
+                        </span>{' '}
+                        <span
+                          className={`font-medium ${selectedType.isInternalInventory ? 'text-[#2EA640]' : 'text-muted-foreground'}`}
+                        >
                           {selectedType.isInternalInventory ? 'Sí' : 'No'}
                         </span>
                       </div>
                       <div>
-                        <span className="text-muted-foreground">Casa Comercial:</span>{' '}
-                        <span className={`font-medium ${selectedType.isHouseComercial ? 'text-[#2EA640]' : 'text-muted-foreground'}`}>
+                        <span className="text-muted-foreground">
+                          Casa Comercial:
+                        </span>{' '}
+                        <span
+                          className={`font-medium ${selectedType.isHouseComercial ? 'text-[#2EA640]' : 'text-muted-foreground'}`}
+                        >
                           {selectedType.isHouseComercial ? 'Sí' : 'No'}
                         </span>
                       </div>
@@ -729,8 +812,8 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
                           </p>
                           <p className="text-xs text-muted-foreground">
                             Omite el bloqueo por superar el 80% de haberes
-                            disponibles y el % máximo configurado para el tipo de
-                            retiro.
+                            disponibles y el % máximo configurado para el tipo
+                            de retiro.
                           </p>
                         </div>
                         <Switch
@@ -740,7 +823,8 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
                           }
                         />
                       </div>
-                      {(associate!.hasActiveLoan || associate!.hasActiveCredit) && (
+                      {(associate!.hasActiveLoan ||
+                        associate!.hasActiveCredit) && (
                         <div className="flex items-center justify-between gap-4 rounded-md border bg-background p-2.5">
                           <div className="pr-2">
                             <p className="text-sm font-medium">
@@ -827,30 +911,32 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
                         <Input
                           placeholder="Buscar producto..."
                           value={productSearchQuery}
-                          onChange={(e) => setProductSearchQuery(e.target.value)}
+                          onChange={(e) =>
+                            setProductSearchQuery(e.target.value)
+                          }
                           autoFocus
                           className="h-8 text-xs"
                         />
-                          <div className="max-h-40 overflow-y-auto space-y-1">
-                            {products
-                              .filter((p) => {
-                                if (!productSearchQuery) return true;
-                                const q = productSearchQuery.toLowerCase();
-                                return (p.name ?? '').toLowerCase().includes(q);
-                              })
-                              .slice(0, 20)
-                              .map((p) => (
-                                <div
-                                  key={p.id}
-                                  onClick={() => {
-                                    addProductItem(p.id!);
-                                    setShowProductSearch(false);
-                                  }}
-                                  className="flex items-center px-3 py-2 rounded-md cursor-pointer hover:bg-muted text-xs"
-                                >
-                                  <span className="font-medium">{p.name}</span>
-                                </div>
-                              ))}
+                        <div className="max-h-40 overflow-y-auto space-y-1">
+                          {products
+                            .filter((p) => {
+                              if (!productSearchQuery) return true;
+                              const q = productSearchQuery.toLowerCase();
+                              return (p.name ?? '').toLowerCase().includes(q);
+                            })
+                            .slice(0, 20)
+                            .map((p) => (
+                              <div
+                                key={p.id}
+                                onClick={() => {
+                                  addProductItem(p.id!);
+                                  setShowProductSearch(false);
+                                }}
+                                className="flex items-center px-3 py-2 rounded-md cursor-pointer hover:bg-muted text-xs"
+                              >
+                                <span className="font-medium">{p.name}</span>
+                              </div>
+                            ))}
                         </div>
                       </div>
                     )}
@@ -858,17 +944,30 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
                     {items
                       .filter((i) => i.type === 'product')
                       .map((item, idx) => (
-                        <div key={idx} className="flex gap-2 items-end border rounded-md p-2 flex-wrap">
+                        <div
+                          key={idx}
+                          className="flex gap-2 items-end border rounded-md p-2 flex-wrap"
+                        >
                           <div className="flex-1 min-w-[120px]">
-                            <span className="text-xs text-muted-foreground">{item.productName}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {item.productName}
+                            </span>
                           </div>
                           <div className="w-20">
-                            <span className="text-xs text-muted-foreground">Cant</span>
+                            <span className="text-xs text-muted-foreground">
+                              Cant
+                            </span>
                             <Input
                               type="number"
                               min={1}
                               value={item.quantity}
-                              onChange={(e) => updateItem(idx, 'quantity', Number(e.target.value))}
+                              onChange={(e) =>
+                                updateItem(
+                                  idx,
+                                  'quantity',
+                                  Number(e.target.value),
+                                )
+                              }
                               className="h-8 text-xs"
                             />
                           </div>
@@ -881,23 +980,38 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
                               inputMode="decimal"
                               value={item.unitPrice ?? ''}
                               onChange={(e) => {
-                                const cleaned = e.target.value.replace(/[^0-9.]/g, '');
-                                updateItem(idx, 'unitPrice', cleaned ? parseFloat(cleaned) : 0);
+                                const cleaned = e.target.value.replace(
+                                  /[^0-9.]/g,
+                                  '',
+                                );
+                                updateItem(
+                                  idx,
+                                  'unitPrice',
+                                  cleaned ? parseFloat(cleaned) : 0,
+                                );
                               }}
                               className="h-8 text-xs font-mono"
                               placeholder="0.00"
                             />
                           </div>
                           <div className="w-28">
-                            <span className="text-xs text-muted-foreground">Precio Bs.</span>
+                            <span className="text-xs text-muted-foreground">
+                              Precio Bs.
+                            </span>
                             <div className="h-8 flex items-center text-xs font-mono">
-                              {item.unitCost?.toLocaleString('es', { minimumFractionDigits: 2 })}
+                              {item.unitCost?.toLocaleString('es', {
+                                minimumFractionDigits: 2,
+                              })}
                             </div>
                           </div>
                           <div className="w-24 text-right">
-                            <span className="text-xs text-muted-foreground">Subtotal</span>
+                            <span className="text-xs text-muted-foreground">
+                              Subtotal
+                            </span>
                             <div className="h-8 flex items-center justify-end text-xs font-mono">
-                              {item.totalCost?.toLocaleString('es', { minimumFractionDigits: 2 })}
+                              {item.totalCost?.toLocaleString('es', {
+                                minimumFractionDigits: 2,
+                              })}
                             </div>
                           </div>
                           <button
@@ -922,7 +1036,9 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
                       </span>
                     </div>
                     <div>
-                      <span className="text-xs text-muted-foreground">Proveedor *</span>
+                      <span className="text-xs text-muted-foreground">
+                        Proveedor *
+                      </span>
                       <select
                         value={supplierId}
                         onChange={(e) => setSupplierId(e.target.value)}
@@ -944,41 +1060,77 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
                     {supplierId && (
                       <div className="space-y-2">
                         <div className="flex justify-end">
-                          <Button type="button" size="sm" variant="outline" onClick={addServiceItem} className="gap-1">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={addServiceItem}
+                            className="gap-1"
+                          >
                             <Plus className="h-3 w-3" /> Agregar Item
                           </Button>
                         </div>
                         {items
                           .filter((i) => i.type === 'service')
                           .map((item, idx) => (
-                            <div key={idx} className="flex gap-2 items-end border rounded-md p-2 flex-wrap">
+                            <div
+                              key={idx}
+                              className="flex gap-2 items-end border rounded-md p-2 flex-wrap"
+                            >
                               <div className="flex-1">
-                                <span className="text-xs text-muted-foreground">Descripción</span>
+                                <span className="text-xs text-muted-foreground">
+                                  Descripción
+                                </span>
                                 <Input
                                   value={item.description}
-                                  onChange={(e) => updateItem(idx, 'description', e.target.value)}
+                                  onChange={(e) =>
+                                    updateItem(
+                                      idx,
+                                      'description',
+                                      e.target.value,
+                                    )
+                                  }
                                   className="h-8 text-xs"
                                   placeholder="Ej: Instalación"
                                 />
                               </div>
                               <div className="w-16">
-                                <span className="text-xs text-muted-foreground">Cant</span>
+                                <span className="text-xs text-muted-foreground">
+                                  Cant
+                                </span>
                                 <Input
                                   type="number"
                                   min={1}
                                   value={item.quantity}
-                                  onChange={(e) => updateItem(idx, 'quantity', Number(e.target.value))}
+                                  onChange={(e) =>
+                                    updateItem(
+                                      idx,
+                                      'quantity',
+                                      Number(e.target.value),
+                                    )
+                                  }
                                   className="h-8 text-xs"
                                 />
                               </div>
                               <div className="w-24">
-                                <span className="text-xs text-muted-foreground">Costo</span>
+                                <span className="text-xs text-muted-foreground">
+                                  Costo
+                                </span>
                                 <Input
                                   type="text"
-                                  value={item.cost && item.cost > 0 ? String(item.cost) : ''}
+                                  value={
+                                    item.cost && item.cost > 0
+                                      ? String(item.cost)
+                                      : ''
+                                  }
                                   onChange={(e) => {
-                                    const cleaned = e.target.value.replace(/[^0-9.]/g, '');
-                                    const num = cleaned ? parseFloat(cleaned) : 0;
+                                    const cleaned = e.target.value.replace(
+                                      /[^0-9.]/g,
+                                      '',
+                                    );
+                                    const num = cleaned
+                                      ? parseFloat(cleaned)
+                                      : 0;
                                     updateItem(idx, 'cost', num);
                                   }}
                                   className="h-8 text-xs font-mono"
@@ -986,9 +1138,13 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
                                 />
                               </div>
                               <div className="w-24 text-right">
-                                <span className="text-xs text-muted-foreground">Subtotal</span>
+                                <span className="text-xs text-muted-foreground">
+                                  Subtotal
+                                </span>
                                 <div className="h-8 flex items-center justify-end text-xs font-mono">
-                                  {item.subtotal?.toLocaleString('es', { minimumFractionDigits: 2 })}
+                                  {item.subtotal?.toLocaleString('es', {
+                                    minimumFractionDigits: 2,
+                                  })}
                                 </div>
                               </div>
                               <button
@@ -1015,10 +1171,15 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <span className="text-xs text-muted-foreground">Monto *</span>
+                      <span className="text-xs text-muted-foreground">
+                        Monto *
+                      </span>
                       {hasAutoAmount ? (
                         <div className="h-9 flex items-center px-3 rounded-md border bg-background text-sm font-mono mt-1">
-                          {effectiveAmount.toLocaleString('es', { minimumFractionDigits: 2 })} Bs
+                          {effectiveAmount.toLocaleString('es', {
+                            minimumFractionDigits: 2,
+                          })}{' '}
+                          Bs
                         </div>
                       ) : (
                         <div className="relative mt-1">
@@ -1030,7 +1191,10 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
                             type="number"
                             value={watchAmount || ''}
                             onChange={(e) =>
-                              form.setValue('requestedAmount', Number(e.target.value) || 0)
+                              form.setValue(
+                                'requestedAmount',
+                                Number(e.target.value) || 0,
+                              )
                             }
                             disabled={saving}
                           />
@@ -1089,11 +1253,15 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
                     <div className="text-sm text-muted-foreground">
                       <span>Comisión Admin ({feePct}%): </span>
                       <span className="font-mono">
-                        {fee.toLocaleString('es', { minimumFractionDigits: 2 })} Bs |{' '}
+                        {fee.toLocaleString('es', { minimumFractionDigits: 2 })}{' '}
+                        Bs |{' '}
                       </span>
                       <span>Desembolsar: </span>
                       <span className="font-mono font-semibold text-[#2EA640]">
-                        {disbursed.toLocaleString('es', { minimumFractionDigits: 2 })} Bs
+                        {disbursed.toLocaleString('es', {
+                          minimumFractionDigits: 2,
+                        })}{' '}
+                        Bs
                       </span>
                     </div>
                   )}
@@ -1101,10 +1269,11 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
 
                 {/* RULES PANEL */}
                 <div
-                  className={`rounded-lg border p-3 ${rules.canSave
-                    ? 'border-[#2EA640]/30 bg-[#2EA640]/5'
-                    : 'border-destructive/30 bg-destructive/5'
-                    }`}
+                  className={`rounded-lg border p-3 ${
+                    rules.canSave
+                      ? 'border-[#2EA640]/30 bg-[#2EA640]/5'
+                      : 'border-destructive/30 bg-destructive/5'
+                  }`}
                 >
                   <div className="flex items-center gap-2 mb-2">
                     {rules.canSave ? (
@@ -1113,7 +1282,9 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
                       <AlertCircle className="h-4 w-4 text-destructive" />
                     )}
                     <span className="text-sm font-semibold uppercase text-muted-foreground">
-                      {rules.canSave ? 'Reglas Cumplidas' : 'Reglas Bloqueantes'}
+                      {rules.canSave
+                        ? 'Reglas Cumplidas'
+                        : 'Reglas Bloqueantes'}
                     </span>
                   </div>
                   <ul className="space-y-1">
@@ -1142,17 +1313,24 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
                     </p>
                   </div>
                   <div className="flex gap-2">
-                    <Button type="button" variant="outline" size="sm" onClick={handleClose}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleClose}
+                    >
                       Cancelar
                     </Button>
                     <Button type="submit" size="sm" disabled={isFormDisabled}>
                       {saving ? (
                         <>
-                          <Loader2 className="mr-1 h-4 w-4 animate-spin" /> Procesando...
+                          <Loader2 className="mr-1 h-4 w-4 animate-spin" />{' '}
+                          Procesando...
                         </>
                       ) : (
                         <>
-                          <CheckCircle2 className="mr-1 h-4 w-4" /> Solicitar Retiro
+                          <CheckCircle2 className="mr-1 h-4 w-4" /> Solicitar
+                          Retiro
                         </>
                       )}
                     </Button>
@@ -1162,7 +1340,6 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
             </Form>
           )}
         </div>
-
 
         <AlertModal
           isOpen={confirmOpen}

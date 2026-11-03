@@ -351,8 +351,14 @@ export class WithdrawalAssociateService {
       );
       const administrativeFee =
         (Number(withdrawal.requestedAmount) * feePercentage) / 100;
-      const disbursedAmount =
-        Number(withdrawal.requestedAmount) - administrativeFee;
+      // Los retiros con casa comercial o inventario suman el gasto
+      // administrativo al monto solicitado. Los retiros normales lo descuentan.
+      const addsAdministrativeFee =
+        !!withdrawalType?.isHouseComercial ||
+        !!withdrawalType?.isInternalInventory;
+      const disbursedAmount = addsAdministrativeFee
+        ? Number(withdrawal.requestedAmount) + administrativeFee
+        : Number(withdrawal.requestedAmount) - administrativeFee;
 
       const isGoodsWithdrawal =
         withdrawal.commercialHouseId != null ||
