@@ -1,18 +1,12 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
-import {
-  HandCoins,
-  Calculator,
-  CheckCircle2,
-  XCircle,
-  Search,
-  User,
-  Info,
-  Loader2,
-  X,
-  Settings2,
-} from 'lucide-react';
+import { AlertModal } from '@/components/shared/alert-modal';
+import { useBankAccountAllQuery } from '@/features/banks/bank-account/hooks/use-bank-account-query';
+import { apiClient } from '@/lib/api-client';
+import { useAuthStore } from '@/stores/auth.store';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Button } from '@repo/shadcn/button';
+import { CustomCalendar } from '@repo/shadcn/custom-calendar';
 import {
   Dialog,
   DialogContent,
@@ -20,11 +14,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@repo/shadcn/dialog';
-import { Button } from '@repo/shadcn/button';
 import { Input } from '@repo/shadcn/input';
 import { Label } from '@repo/shadcn/label';
-import { Separator } from '@repo/shadcn/separator';
-import { Switch } from '@repo/shadcn/switch';
 import {
   Select,
   SelectContent,
@@ -32,25 +23,35 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/shadcn/select';
+import { Separator } from '@repo/shadcn/separator';
+import { Switch } from '@repo/shadcn/switch';
 import { Textarea } from '@repo/shadcn/textarea';
-import { useForm, useWatch } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-  loanManagementSchema,
+  Calculator,
+  CheckCircle2,
+  HandCoins,
+  Info,
+  Loader2,
+  Search,
+  Settings2,
+  User,
+  X,
+  XCircle,
+} from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
+import { useLoanTypesQuery } from '../../type-loans/hooks/use-type-loans-query';
+import { useCreateLoansManagementMutation } from '../hooks/use-loans-management-mutation';
+import { useSearchAssociate } from '../hooks/use-loans-management-query';
+import { loansManagementKeys } from '../keys/loans-management-keys';
+import { PAYMENT_TYPE_LABELS } from '../schemas/loans-management-options';
+import {
   loanDefaults,
+  loanManagementSchema,
   type LoanManagement,
 } from '../schemas/loans-management.schema';
-import { useSearchAssociate } from '../hooks/use-loans-management-query';
-import { useCreateLoansManagementMutation } from '../hooks/use-loans-management-mutation';
-import { PAYMENT_TYPE_LABELS } from '../schemas/loans-management-options';
 import { calculateFrenchAmortization } from '../utils/loan-amortization-utils';
-import { AlertModal } from '@/components/shared/alert-modal';
-import { apiClient } from '@/lib/api-client';
-import { loansManagementKeys } from '../keys/loans-management-keys';
-import { useLoanTypesQuery } from '../../type-loans/hooks/use-type-loans-query';
-import { useBankAccountAllQuery } from '@/features/banks/bank-account/hooks/use-bank-account-query';
-import { useAuthStore } from '@/stores/auth.store';
 
 function formatCurrency(n: number) {
   return n?.toLocaleString('es', { minimumFractionDigits: 2 }) ?? '0,00';
@@ -69,7 +70,10 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const hasPermission = useAuthStore((s) => s.hasPermission);
-  const canUseSpecialParams = hasPermission('portfolio:loans', 'special_params');
+  const canUseSpecialParams = hasPermission(
+    'portfolio:loans',
+    'special_params',
+  );
   const [specialParams, setSpecialParams] = useState({
     bypassPayrollCredit: false,
     bypassAvailableBalance: false,
@@ -107,10 +111,10 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
   const watchTermUnits = useWatch({ control, name: 'termUnits' }) || 1;
   const watchStartDate = useWatch({ control, name: 'startDate' });
   const watchTermType = useWatch({ control, name: 'termType' });
-  const watchExpensesPct = useWatch({ control, name: 'expensesPercentage' }) || 0;
+  const watchExpensesPct =
+    useWatch({ control, name: 'expensesPercentage' }) || 0;
   const watchCurrency = useWatch({ control, name: 'currencyCode' }) || 'VES';
-  const watchExchangeRate =
-    useWatch({ control, name: 'exchangeRate' }) || 0;
+  const watchExchangeRate = useWatch({ control, name: 'exchangeRate' }) || 0;
   const creditSymbol = watchCurrency !== 'VES' ? watchCurrency : 'Bs';
   const creditFx = watchCurrency !== 'VES' ? watchExchangeRate || 1 : 1;
 
@@ -240,7 +244,14 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
       watchStartDate || new Date(),
       watchExpensesPct,
     );
-  }, [watchAmount, watchRate, watchTermUnits, watchTermType, watchStartDate, watchExpensesPct]);
+  }, [
+    watchAmount,
+    watchRate,
+    watchTermUnits,
+    watchTermType,
+    watchStartDate,
+    watchExpensesPct,
+  ]);
 
   const rules = useMemo(() => {
     const r: { canSave: boolean; messages: string[] } = {
@@ -332,17 +343,27 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
       );
     }
     return r;
-  }, [associateData, watchAmount, creditFx, selectedType, amortData, canUseSpecialParams, specialParams]);
+  }, [
+    associateData,
+    watchAmount,
+    creditFx,
+    selectedType,
+    amortData,
+    canUseSpecialParams,
+    specialParams,
+  ]);
 
   const handleFormSubmit = useCallback(
     (data: LoanManagement) => {
+      const rate = Number(data.interestRate);
+      const expensePct = Number(data.expensesPercentage);
       const formatted = {
         ...data,
         associateId: data.associateId || associateData?.associate?.id,
         requestedAmount: Number(data.requestedAmount),
-        interestRate: Number(data.interestRate),
+        interestRate: Number.isFinite(rate) ? rate : 0,
         termUnits: Number(data.termUnits),
-        expensesPercentage: Number(data.expensesPercentage || 0),
+        expensesPercentage: Number.isFinite(expensePct) ? expensePct : 0,
         paymentMethod: 'BANK_TRANSFER',
         startDate: data.startDate,
         ...(canUseSpecialParams
@@ -375,7 +396,12 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
     associateData?.hasPayrollCredit;
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) handleClose();
+      }}
+    >
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[700px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -394,9 +420,7 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
                 placeholder="Ingrese Cédula del Asociado..."
                 value={searchQuery}
                 onChange={(e) =>
-                  setSearchQuery(
-                    e.target.value.replace(/\D/g, '').slice(0, 8),
-                  )
+                  setSearchQuery(e.target.value.replace(/\D/g, '').slice(0, 8))
                 }
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 disabled={searching}
@@ -427,10 +451,11 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
           {/* ASSOCIATE DATA */}
           {!searching && associateData?.associate && (
             <div
-              className={`rounded-lg border p-4 space-y-2 relative ${hasBlocks
-                ? 'border-destructive/30 bg-destructive/5'
-                : 'bg-muted/30'
-                }`}
+              className={`rounded-lg border p-4 space-y-2 relative ${
+                hasBlocks
+                  ? 'border-destructive/30 bg-destructive/5'
+                  : 'bg-muted/30'
+              }`}
             >
               <Button
                 variant="ghost"
@@ -453,9 +478,7 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">
-                    Cédula:
-                  </span>
+                  <span className="text-sm text-muted-foreground">Cédula:</span>
                   <span className="text-sm font-mono">
                     {associateData.associate.cedula}
                   </span>
@@ -505,24 +528,24 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
                 {(associateData.hasActiveLoan ||
                   associateData.hasActiveCredit ||
                   associateData.hasPayrollCredit) && (
-                    <div className="flex flex-wrap gap-2 pt-2">
-                      {associateData.hasActiveLoan && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 text-destructive px-2.5 py-0.5 text-xs font-medium">
-                          <XCircle className="h-3 w-3" /> Préstamo Activo
-                        </span>
-                      )}
-                      {associateData.hasActiveCredit && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 text-destructive px-2.5 py-0.5 text-xs font-medium">
-                          <XCircle className="h-3 w-3" /> Crédito Activo
-                        </span>
-                      )}
-                      {associateData.hasPayrollCredit && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 text-destructive px-2.5 py-0.5 text-xs font-medium">
-                          <XCircle className="h-3 w-3" /> Credinomina Activo
-                        </span>
-                      )}
-                    </div>
-                  )}
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    {associateData.hasActiveLoan && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 text-destructive px-2.5 py-0.5 text-xs font-medium">
+                        <XCircle className="h-3 w-3" /> Préstamo Activo
+                      </span>
+                    )}
+                    {associateData.hasActiveCredit && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 text-destructive px-2.5 py-0.5 text-xs font-medium">
+                        <XCircle className="h-3 w-3" /> Crédito Activo
+                      </span>
+                    )}
+                    {associateData.hasPayrollCredit && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 text-destructive px-2.5 py-0.5 text-xs font-medium">
+                        <XCircle className="h-3 w-3" /> Credinomina Activo
+                      </span>
+                    )}
+                  </div>
+                )}
                 {!hasBlocks && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 px-2.5 py-0.5 text-xs font-medium">
                     <CheckCircle2 className="h-3 w-3" /> Sin bloqueos
@@ -533,9 +556,7 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
           )}
 
           {!searching && !associateData && submittedSearch && (
-            <p className="text-sm text-destructive">
-              Asociado no encontrado
-            </p>
+            <p className="text-sm text-destructive">Asociado no encontrado</p>
           )}
 
           {!searching && !associateData && !submittedSearch && (
@@ -578,33 +599,25 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>
-                      <span className="text-muted-foreground">
-                        Tasa Anual:
-                      </span>{' '}
+                      <span className="text-muted-foreground">Tasa Anual:</span>{' '}
                       <span className="font-medium">
                         {selectedType.interestRate}%
                       </span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">
-                        % Gasto:
-                      </span>{' '}
+                      <span className="text-muted-foreground">% Gasto:</span>{' '}
                       <span className="font-medium">
                         {selectedType.administrativeExpensePercentage || '0'}%
                       </span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">
-                        Plazos:
-                      </span>{' '}
+                      <span className="text-muted-foreground">Plazos:</span>{' '}
                       <span className="font-medium">
                         {selectedType.termUnits}
                       </span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">
-                        Modalidad:
-                      </span>{' '}
+                      <span className="text-muted-foreground">Modalidad:</span>{' '}
                       <span className="font-medium">
                         {PAYMENT_TYPE_LABELS[selectedType.termType] ||
                           selectedType.termType}
@@ -735,19 +748,13 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
                     </div>
                     <div>
                       <Label>Fecha de Inicio *</Label>
-                      <Input
-                        type="date"
+                      <CustomCalendar
                         className="mt-1"
-                        value={
-                          watchStartDate
-                            ? new Date(watchStartDate)
-                              .toISOString()
-                              .slice(0, 10)
-                            : ''
-                        }
-                        onChange={(e) =>
-                          setValue('startDate', new Date(e.target.value))
-                        }
+                        value={watchStartDate ? new Date(watchStartDate) : null}
+                        onChange={(date) => {
+                          if (date) setValue('startDate', date);
+                        }}
+                        disabled={isSaving}
                       />
                     </div>
                     <div>
@@ -814,10 +821,10 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
                         Cuota Mensual:
                       </span>{' '}
                       <span className="font-medium text-[#305AD9]">
-                        {formatCurrency(amortData.monthlyPayment)} {creditSymbol}
+                        {formatCurrency(amortData.monthlyPayment)}{' '}
+                        {creditSymbol}
                       </span>
                     </div>
-
 
                     <div className="col-span-2">
                       <Separator className="my-1" />
@@ -832,8 +839,8 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
                       </span>
                       {watchCurrency !== 'VES' && (
                         <div className="text-xs text-muted-foreground">
-                          ≈ {formatCurrency(amortData.capital * creditFx)} Bs (tasa{' '}
-                          {creditFx.toFixed(2)})
+                          ≈ {formatCurrency(amortData.capital * creditFx)} Bs
+                          (tasa {creditFx.toFixed(2)})
                         </div>
                       )}
                     </div>
@@ -866,62 +873,48 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
                             <tr>
                               <th className="py-1 px-1 text-left">#</th>
                               <th className="py-1 px-1 text-left">Venc.</th>
-                              <th className="py-1 px-1 text-right">
-                                Capital
-                              </th>
-                              <th className="py-1 px-1 text-right">
-                                Interés
-                              </th>
-                              <th className="py-1 px-1 text-right">
-                                Cuota
-                              </th>
-                              <th className="py-1 px-1 text-right">
-                                Saldo
-                              </th>
+                              <th className="py-1 px-1 text-right">Capital</th>
+                              <th className="py-1 px-1 text-right">Interés</th>
+                              <th className="py-1 px-1 text-right">Cuota</th>
+                              <th className="py-1 px-1 text-right">Saldo</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {amortData.schedule
-                              .slice(0, 12)
-                              .map((inst) => (
-                                <tr
-                                  key={inst.installmentNumber}
-                                  className="border-t"
-                                >
-                                  <td className="py-1 px-1">
-                                    {inst.installmentNumber}
-                                  </td>
-                                  <td className="py-1 px-1">
-                                    {new Date(
-                                      inst.dueDate,
-                                    ).toLocaleDateString('es')}
-                                  </td>
-                                  <td className="py-1 px-1 text-right font-mono">
-                                    {formatCurrency(
-                                      parseFloat(inst.principalAmount),
-                                    )}
-                                  </td>
-                                  <td className="py-1 px-1 text-right font-mono">
-                                    {formatCurrency(
-                                      parseFloat(inst.interestAmount),
-                                    )}
-                                  </td>
-                                  <td className="py-1 px-1 text-right font-mono font-semibold">
-                                    {formatCurrency(
-                                      parseFloat(
-                                        inst.totalInstallmentAmount,
-                                      ),
-                                    )}
-                                  </td>
-                                  <td className="py-1 px-1 text-right font-mono">
-                                    {formatCurrency(
-                                      parseFloat(
-                                        inst.principalBalancePending,
-                                      ),
-                                    )}
-                                  </td>
-                                </tr>
-                              ))}
+                            {amortData.schedule.slice(0, 12).map((inst) => (
+                              <tr
+                                key={inst.installmentNumber}
+                                className="border-t"
+                              >
+                                <td className="py-1 px-1">
+                                  {inst.installmentNumber}
+                                </td>
+                                <td className="py-1 px-1">
+                                  {new Date(inst.dueDate).toLocaleDateString(
+                                    'es',
+                                  )}
+                                </td>
+                                <td className="py-1 px-1 text-right font-mono">
+                                  {formatCurrency(
+                                    parseFloat(inst.principalAmount),
+                                  )}
+                                </td>
+                                <td className="py-1 px-1 text-right font-mono">
+                                  {formatCurrency(
+                                    parseFloat(inst.interestAmount),
+                                  )}
+                                </td>
+                                <td className="py-1 px-1 text-right font-mono font-semibold">
+                                  {formatCurrency(
+                                    parseFloat(inst.totalInstallmentAmount),
+                                  )}
+                                </td>
+                                <td className="py-1 px-1 text-right font-mono">
+                                  {formatCurrency(
+                                    parseFloat(inst.principalBalancePending),
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
                           </tbody>
                         </table>
                         {amortData.schedule.length > 12 && (
@@ -938,10 +931,11 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
               {/* Reglas de Negocio */}
               {rules.messages.length > 0 && (
                 <div
-                  className={`rounded-lg border p-3 space-y-2 ${rules.canSave
-                    ? 'border-muted bg-muted/20'
-                    : 'border-destructive/30 bg-destructive/5'
-                    }`}
+                  className={`rounded-lg border p-3 space-y-2 ${
+                    rules.canSave
+                      ? 'border-muted bg-muted/20'
+                      : 'border-destructive/30 bg-destructive/5'
+                  }`}
                 >
                   <div className="flex items-center gap-2">
                     {rules.canSave ? (
@@ -957,10 +951,11 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
                     {rules.messages.map((msg, i) => (
                       <p
                         key={i}
-                        className={`text-xs ${rules.canSave
-                          ? 'text-muted-foreground'
-                          : 'text-destructive'
-                          }`}
+                        className={`text-xs ${
+                          rules.canSave
+                            ? 'text-muted-foreground'
+                            : 'text-destructive'
+                        }`}
                       >
                         {!rules.canSave && '• '}
                         {msg}
@@ -990,7 +985,8 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
                           Permitir credinomina activa
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          Ignora el bloqueo cuando el asociado tiene credinomina.
+                          Ignora el bloqueo cuando el asociado tiene
+                          credinomina.
                         </p>
                       </div>
                       <Switch

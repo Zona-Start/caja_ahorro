@@ -728,8 +728,13 @@ export class CreditManagementService {
     const r = periodRate(finalRate, finalTermType);
     const factor = r === 0 ? 1 : Math.pow(1 + r, finalTermUnits);
     const frenchInstallment =
-      financedCapital > 0 ? (financedCapital * r * factor) / (factor - 1) : 0;
-    const totalInterest = frenchInstallment * finalTermUnits - financedCapital;
+      financedCapital > 0
+        ? r === 0
+          ? financedCapital / finalTermUnits
+          : (financedCapital * r * factor) / (factor - 1)
+        : 0;
+    const totalInterest =
+      r === 0 ? 0 : frenchInstallment * finalTermUnits - financedCapital;
     const totalPayable = frenchInstallment * finalTermUnits;
     const installmentAmount = financedCapital > 0 ? frenchInstallment : 0;
 
@@ -1243,7 +1248,7 @@ export class CreditManagementService {
             withdrawalTypeId: credit.haberesWithdrawalTypeId,
             requestedAmount: haberesAmtPost,
             paymentMethod: paymentMethodEnum.BANK_TRANSFER,
-            date: new Date(),
+            date: startDate ? new Date(startDate) : new Date(),
             description: `Retiro de haberes como método de pago del Crédito N°${customReference}`,
             commercialHouseId: null,
             originType: 'CREDIT',
@@ -1363,7 +1368,7 @@ export class CreditManagementService {
             category: 'SAVINGS_BANK',
             operationType: 'CREDIT_TYPE',
             description: `Desembolso de Crédito - ${assoc?.fullname ?? ''}`,
-            entryDate: new Date(),
+            entryDate: startDate ? new Date(startDate) : new Date(),
             referenceValue: typeDesc,
             currencyCode: CurrencyCodeEnum.VES,
             originReferenceId: id,

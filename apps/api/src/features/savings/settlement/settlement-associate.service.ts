@@ -693,9 +693,16 @@ export class SettlementAssociateService {
       }
 
       const accountId = associate.associateAccountId;
-      // En carga masiva se usa la fecha del Excel (liquidationDate); en el flujo
-      // individual se mantiene la fecha/hora del procesamiento.
-      const processedDate = options?.date ?? new Date();
+      // La fecha contable debe ser la fecha de la liquidación (la enviada al
+      // crearla o la del Excel en carga masiva), no la fecha de aprobación.
+      const liquidationDate = liquidation.liquidationDate
+        ? new Date(liquidation.liquidationDate)
+        : null;
+      const processedDate =
+        options?.date ??
+        (liquidationDate && !Number.isNaN(liquidationDate.getTime())
+          ? liquidationDate
+          : new Date());
 
       const totalSavings = Number(liquidation.totalSavingsBalanceAtLiquidation);
       const totalLoans = Number(liquidation.totalOutstandingLoansAtLiquidation);
@@ -1193,9 +1200,7 @@ export class SettlementAssociateService {
           associateCedula: associate.cedula,
           entryDate: processedDate,
           currencyCode: 'VES' as CurrencyCodeEnum,
-          settlementType: liquidation.settlementType as
-            | 'COMPLETE'
-            | 'SPECIAL',
+          settlementType: liquidation.settlementType as 'COMPLETE' | 'SPECIAL',
           haberesContribution: haberes.haberes_contribution,
           haberesVoluntary: haberes.haberes_voluntary,
           haberesEmployer: haberes.haberes_employer,

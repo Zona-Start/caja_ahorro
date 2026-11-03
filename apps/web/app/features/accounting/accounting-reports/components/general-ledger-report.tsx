@@ -355,9 +355,7 @@ export function GeneralLedgerReport() {
                     <TableBody>
                       {account.entries.map((entry: any) => (
                         <TableRow key={entry.entryId}>
-                          <TableCell>
-                            {new Date(entry.entryDate).toLocaleDateString()}
-                          </TableCell>
+                          <TableCell>{formatDbDate(entry.entryDate)}</TableCell>
                           <TableCell>{entry.description}</TableCell>
                           <TableCell className="text-right font-mono">
                             {Number(entry.debit) > 0

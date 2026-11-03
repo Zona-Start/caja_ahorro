@@ -49,7 +49,6 @@ export const loanManagementSchema = z.object({
   approvalDate: z.string().optional(),
   loanTypeInterestRate: z.string().optional(),
   associateAccountNumber: z.string().optional(),
-  disbursedAmount: z.string().optional(),
   accountNumber: z.string().optional(),
   approvedAmount: z.string().optional(),
   currencyCode: z.string().optional(),

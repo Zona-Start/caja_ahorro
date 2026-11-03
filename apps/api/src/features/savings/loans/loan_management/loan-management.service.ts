@@ -595,8 +595,13 @@ export class LoanManagementService {
     const r = periodRate(finalRate, finalTermType);
     const factor = r === 0 ? 1 : Math.pow(1 + r, finalTermUnits);
     const frenchInstallment =
-      capital > 0 ? (capital * r * factor) / (factor - 1) : 0;
-    const totalInterest = frenchInstallment * finalTermUnits - capital;
+      capital > 0 && finalTermUnits > 0
+        ? r === 0
+          ? capital / finalTermUnits
+          : (capital * r * factor) / (factor - 1)
+        : 0;
+    const totalInterest =
+      r === 0 ? 0 : frenchInstallment * finalTermUnits - capital;
     const totalInstallment = frenchInstallment;
     const totalPayable = totalInstallment * finalTermUnits;
 
@@ -770,16 +775,26 @@ export class LoanManagementService {
           and(eq(loanTypes.id, loanTypeId), eq(loanTypes.tenantId, tenantId)),
         );
 
-      const finalRate = loan.interestRate
-        ? Number(loan.interestRate)
-        : Number(loanType?.interestRate ?? 0);
+      const storedRate = Number(loan.interestRate);
+      const finalRate =
+        loan.interestRate !== null &&
+        loan.interestRate !== undefined &&
+        loan.interestRate !== '' &&
+        Number.isFinite(storedRate)
+          ? storedRate
+          : Number(loanType?.interestRate ?? 0);
       const finalTermUnits = loan.termUnits ?? loanType?.termUnits ?? 1;
       const finalTermType = (loan.termType ?? loanType?.termType ?? 'PLAZO') as
         'installments' | 'quotas';
 
-      const expensePct = savedExpensesPercentage
-        ? Number(savedExpensesPercentage)
-        : Number(loanType?.administrativeExpensePercentage ?? 0);
+      const storedExpensePct = Number(savedExpensesPercentage);
+      const expensePct =
+        savedExpensesPercentage !== null &&
+        savedExpensesPercentage !== undefined &&
+        savedExpensesPercentage !== '' &&
+        Number.isFinite(storedExpensePct)
+          ? storedExpensePct
+          : Number(loanType?.administrativeExpensePercentage ?? 0);
       const expensesAmount = (reqAmt * expensePct) / 100;
 
       // Capital financiado = solicitado + gastos.
@@ -787,10 +802,14 @@ export class LoanManagementService {
 
       const r = periodRate(finalRate, finalTermType);
       const n = finalTermUnits;
-      const factor = Math.pow(1 + r, n);
+      const factor = r === 0 ? 1 : Math.pow(1 + r, n);
       const frenchInstallment =
-        capital > 0 ? (capital * r * factor) / (factor - 1) : 0;
-      const totalInterest = frenchInstallment * n - capital;
+        capital > 0 && n > 0
+          ? r === 0
+            ? capital / n
+            : (capital * r * factor) / (factor - 1)
+          : 0;
+      const totalInterest = r === 0 ? 0 : frenchInstallment * n - capital;
       const totalInstallment = frenchInstallment;
       const totalPayable = totalInstallment * n;
 
@@ -953,6 +972,11 @@ export class LoanManagementService {
         );
 
       const disbursementDate = dto.disbursementDate ?? new Date();
+      const startDate = loan.startDate ? new Date(loan.startDate) : null;
+      const accountingEntryDate =
+        startDate && !Number.isNaN(startDate.getTime())
+          ? startDate
+          : disbursementDate;
 
       const methodMap: Record<string, paymentMethodEnum> = {
         transfer: paymentMethodEnum.BANK_TRANSFER,
@@ -1081,7 +1105,7 @@ export class LoanManagementService {
           expensesAmount: expensesAmountBase,
           loanPrincipalAmount,
           bankAccountAmount,
-          entryDate: disbursementDate,
+          entryDate: accountingEntryDate,
           currencyCode: CurrencyCodeEnum.VES,
         },
       };
@@ -1533,9 +1557,10 @@ export class LoanManagementService {
         ),
       );
 
-    const annualInterestRate = dto.interestRate
-      ? dto.interestRate
-      : parseFloat(getLoanTypes.interestRate);
+    const annualInterestRate =
+      dto.interestRate !== undefined && dto.interestRate !== null
+        ? dto.interestRate
+        : parseFloat(getLoanTypes.interestRate);
 
     const numInstallments = dto.termUnits ?? getLoanTypes.termUnits;
     const resolvedTermType = dto.termType ?? getLoanTypes.termType ?? 'Plazos';
@@ -1551,11 +1576,15 @@ export class LoanManagementService {
 
     const r = periodRate(annualInterestRate, resolvedTermType);
     const n = numInstallments;
-    const factor = Math.pow(1 + r, n);
+    const factor = r === 0 ? 1 : Math.pow(1 + r, n);
     const frenchInstallment =
-      financedCapital > 0 ? (financedCapital * r * factor) / (factor - 1) : 0;
+      financedCapital > 0 && n > 0
+        ? r === 0
+          ? financedCapital / n
+          : (financedCapital * r * factor) / (factor - 1)
+        : 0;
 
-    const totalInterest = frenchInstallment * n - financedCapital;
+    const totalInterest = r === 0 ? 0 : frenchInstallment * n - financedCapital;
     const totalQuota = frenchInstallment;
     const totalPayable = totalQuota * n;
 
@@ -1595,7 +1624,10 @@ export class LoanManagementService {
 
     const updatedLoan = await this.db.transaction(async (tx) => {
       const updateSet: Record<string, unknown> = {
-        interestRate: dto.interestRate ? String(dto.interestRate) : null,
+        interestRate:
+          dto.interestRate !== undefined && dto.interestRate !== null
+            ? String(dto.interestRate)
+            : undefined,
         loanModality: dto?.loanModality,
         requestDate: dto?.requestDate?.split('T')[0],
         requestedAmount:
@@ -1623,6 +1655,7 @@ export class LoanManagementService {
             ? String(totalQuota.toFixed(6))
             : undefined,
         expensesAmount: String(expensesAmount.toFixed(6)),
+        expensesPercentage: String(expensePercentage),
         overdraftAmount:
           dto.overdraftAmount !== null && dto.overdraftAmount !== undefined
             ? String(dto.overdraftAmount)
@@ -2162,12 +2195,34 @@ export class LoanManagementService {
         ),
       );
 
+    const inPaymentQuery = await this.db
+      .select({ count: sql<number>`count(*)` })
+      .from(loans)
+      .where(
+        and(
+          eq(loans.tenantId, tenantId),
+          eq(loans.status, LoanStatusEnum.IN_PAYMENT),
+        ),
+      );
+
+    const paidQuery = await this.db
+      .select({ count: sql<number>`count(*)` })
+      .from(loans)
+      .where(
+        and(
+          eq(loans.tenantId, tenantId),
+          eq(loans.status, LoanStatusEnum.PAID),
+        ),
+      );
+
     return {
       total: Number(totalQuery[0].count),
       pending: Number(pendingQuery[0].count),
       approved: Number(approvedQuery[0].count),
       disbursed: Number(disbursedQuery[0].count),
       rejected: Number(rejectedQuery[0].count),
+      inPayment: Number(inPaymentQuery[0].count),
+      paid: Number(paidQuery[0].count),
     };
   }
 

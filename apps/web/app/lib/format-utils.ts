@@ -1,4 +1,7 @@
-export const formatCurrency = (value: number, currency: 'VES' | 'USD' | 'EUR' | string) => {
+export const formatCurrency = (
+  value: number,
+  currency: 'VES' | 'USD' | 'EUR' | string,
+) => {
   const formatted = new Intl.NumberFormat('es-VE', {
     style: 'currency',
     currency,
@@ -41,7 +44,27 @@ export const formatNumber = (value: string | number) => {
   }
 };
 
-export const formatDbDate = (value: string | Date | undefined | null): string => {
+export const parseDateOnly = (
+  value: string | Date | undefined | null,
+): Date | null => {
+  if (!value) return null;
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (match) {
+    const [, year, month, day] = match;
+    return new Date(Number(year), Number(month) - 1, Number(day));
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+export const formatDbDate = (
+  value: string | Date | undefined | null,
+): string => {
   if (!value) return '-';
   if (typeof value === 'string') {
     const [y, m, d] = value.split('-');

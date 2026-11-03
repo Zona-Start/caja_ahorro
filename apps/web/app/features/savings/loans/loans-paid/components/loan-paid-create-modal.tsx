@@ -93,7 +93,7 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
   const { data: bankAccountsData } = useBankAccountAll();
   const bankAccounts = bankAccountsData?.data || [];
 
-  const { data, error, isError, isLoading } = useAssociatesByCedula(
+  const { data, error, isError, isFetching } = useAssociatesByCedula(
     submittedSearchTerm,
     { enabled: shouldFetch && !!submittedSearchTerm.trim() },
   );
@@ -196,34 +196,42 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
   ]);
 
   useEffect(() => {
-    if (shouldFetch && !isLoading) {
+    // No aplicar datos mientras la consulta está en vuelo: al volver a buscar
+    // al mismo asociado se debe mostrar la cuota actualizada, no la caché
+    // anterior. Este efecto también refresca el detalle tras un refetch.
+    if (!submittedSearchTerm || isFetching) return;
+
+    if (isError) {
+      if (!shouldFetch) return;
       setShouldFetch(false);
-      if (isError) {
-        const errMsg = (error as { message?: string })?.message || '';
-        if (errMsg.toLowerCase().includes('not found')) {
-          toast.info({
-            title: 'Asociado no encontrado',
-            description: `Cédula: ${submittedSearchTerm}`,
-          });
-        } else {
-          toast.error({
-            title: 'Error en búsqueda',
-            description: errMsg,
-          });
-        }
-        setSelectedAssociate(null);
-      } else if (data) {
-        setSelectedAssociate(data);
-        if (data.loanId) {
-          form.setValue('loanId', data.loanId);
-        }
+      const errMsg = (error as { message?: string })?.message || '';
+      if (errMsg.toLowerCase().includes('not found')) {
+        toast.info({
+          title: 'Asociado no encontrado',
+          description: `Cédula: ${submittedSearchTerm}`,
+        });
+      } else {
+        toast.error({
+          title: 'Error en búsqueda',
+          description: errMsg,
+        });
       }
+      setSelectedAssociate(null);
+      return;
+    }
+
+    if (data) {
+      setSelectedAssociate(data);
+      if (data.loanId) {
+        form.setValue('loanId', data.loanId);
+      }
+      setShouldFetch(false);
     }
   }, [
     data,
     isError,
     error,
-    isLoading,
+    isFetching,
     shouldFetch,
     submittedSearchTerm,
     setSelectedAssociate,
@@ -251,9 +259,11 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
       });
       return;
     }
+    queryClient.cancelQueries({
+      queryKey: QUERY_KEYS.loansPaid.byCedulaAll(),
+    });
     queryClient.removeQueries({
-      queryKey: QUERY_KEYS.loansPaid.byCedula(''),
-      exact: false,
+      queryKey: QUERY_KEYS.loansPaid.byCedulaAll(),
     });
     setSelectedAssociate(null);
     form.reset();
@@ -271,9 +281,11 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
     setPaymentMode('next_installment');
     setCustomAmount('');
     form.reset();
+    queryClient.cancelQueries({
+      queryKey: QUERY_KEYS.loansPaid.byCedulaAll(),
+    });
     queryClient.removeQueries({
-      queryKey: QUERY_KEYS.loansPaid.byCedula(''),
-      exact: false,
+      queryKey: QUERY_KEYS.loansPaid.byCedulaAll(),
     });
   }, [form, queryClient]);
 
@@ -372,14 +384,14 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
                   setSearchTerm(e.target.value.replace(/\D/g, '').slice(0, 8))
                 }
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                disabled={isLoading}
+                disabled={isFetching}
               />
             </div>
             <Button
               onClick={handleSearch}
-              disabled={!searchTerm.trim() || isLoading}
+              disabled={!searchTerm.trim() || isFetching}
             >
-              {isLoading ? (
+              {isFetching ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Search className="h-4 w-4" />
@@ -388,7 +400,7 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
             </Button>
           </div>
 
-          {isLoading && !selectedAssociate && (
+          {isFetching && !selectedAssociate && (
             <div className="text-center py-8">
               <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
               <p className="text-muted-foreground mt-2">
@@ -397,7 +409,7 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
             </div>
           )}
 
-          {!isLoading && !selectedAssociate && !error && (
+          {!isFetching && !selectedAssociate && !error && (
             <div className="text-center py-6 border border-dashed rounded-lg">
               <User className="h-8 w-8 mx-auto text-muted-foreground/50" />
               <p className="text-muted-foreground mt-2 text-sm">
@@ -407,7 +419,7 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
           )}
 
           {/* ── SECCIÓN 2: DATOS DEL ASOCIADO ── */}
-          {!isLoading && selectedAssociate && (
+          {!isFetching && selectedAssociate && (
             <div className="rounded-lg border border-[#2EA640]/30 bg-[#2EA640]/5 p-4 space-y-3 relative">
               <Button
                 variant="ghost"

@@ -1,6 +1,8 @@
+import { CustomCalendar } from '@/components/shared/custom-calendar';
+import { AssociateSearchSelect } from '@/features/savings/partners/associates/components/associate-search-select';
+import { parseDateOnly } from '@/lib/format-utils';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@repo/shadcn/button';
-import { CustomCalendar } from '@/components/shared/custom-calendar';
 import {
   Form,
   FormControl,
@@ -17,12 +19,10 @@ import { Switch } from '@repo/shadcn/switch';
 import { PlusCircle, Trash2 } from 'lucide-react';
 import { useEffect } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
-import { AssociateSearchSelect } from '@/features/savings/partners/associates/components/associate-search-select';
 import { useAccountingAccounts } from '../../accounting-accounts/hooks/use-accounting-accounts-query';
 import { useAccountingEntryMutation } from '../hooks/use-accounting-entries-mutation';
 import {
   type AccountingEntry,
-  type AccountingEntryDetail,
   accountingEntrySchema,
 } from '../schemas/accounting-entry.schema';
 
@@ -46,9 +46,7 @@ export function AccountingEntryForm({
     defaultValues: {
       id: defaultValues?.id,
       tenantId: defaultValues?.tenantId,
-      entryDate: defaultValues?.entryDate
-        ? new Date(defaultValues?.entryDate)
-        : new Date(),
+      entryDate: parseDateOnly(defaultValues?.entryDate) ?? new Date(),
       description: defaultValues?.description || '',
       currencyCode: 'VES',
       details: defaultValues?.details?.length
@@ -197,14 +195,9 @@ export function AccountingEntryForm({
             <div className="col-span-1"></div>
           </div>
           {fields.map((field, index) => {
-            const useAssociate = form.watch(
-              `details.${index}.useAssociate`,
-            );
+            const useAssociate = form.watch(`details.${index}.useAssociate`);
             return (
-              <div
-                key={field.id}
-                className="space-y-2 rounded-md border p-2"
-              >
+              <div key={field.id} className="space-y-2 rounded-md border p-2">
                 <div className="grid grid-cols-12 gap-2 items-start">
                   <FormField
                     control={form.control}
@@ -223,7 +216,7 @@ export function AccountingEntryForm({
                           onValueChange={field.onChange}
                           placeholder="Seleccione una cuenta"
                           defaultValue={
-                            field.value !== ""
+                            field.value !== ''
                               ? field.value.toString()
                               : undefined
                           }
@@ -387,7 +380,9 @@ export function AccountingEntryForm({
             <div
               className={cn(
                 'flex justify-between font-bold text-lg',
-                Math.abs(difference) > 0.01 ? 'text-destructive' : 'text-green-600',
+                Math.abs(difference) > 0.01
+                  ? 'text-destructive'
+                  : 'text-green-600',
               )}
             >
               <span>Diferencia:</span>
@@ -400,7 +395,10 @@ export function AccountingEntryForm({
           <Button variant="outline" type="button" onClick={onCancel}>
             Cancelar
           </Button>
-          <Button type="submit" disabled={isSaving || Math.abs(difference) > 0.01}>
+          <Button
+            type="submit"
+            disabled={isSaving || Math.abs(difference) > 0.01}
+          >
             {isSaving ? 'Guardando...' : 'Guardar Asiento'}
           </Button>
         </div>

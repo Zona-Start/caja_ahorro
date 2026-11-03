@@ -1,10 +1,10 @@
 import { apiClient } from '@/lib/api-client';
 import { z } from 'zod';
-import {
-  SearchAssociateResultSchema,
-  LoanManagementMutationResponse,
-} from '../schemas/loans-management-api-response';
 import type { SearchAssociateResult } from '../schemas/loans-management-api-response';
+import {
+  LoanManagementMutationResponse,
+  SearchAssociateResultSchema,
+} from '../schemas/loans-management-api-response';
 
 const loansManagementResponseAllSchema = z.object({
   data: z.array(z.any()),
@@ -126,6 +126,8 @@ export const loansManagementService = {
       approved: z.number(),
       disbursed: z.number(),
       rejected: z.number(),
+      inPayment: z.number(),
+      paid: z.number(),
     });
     return schema.parse(response.data);
   },

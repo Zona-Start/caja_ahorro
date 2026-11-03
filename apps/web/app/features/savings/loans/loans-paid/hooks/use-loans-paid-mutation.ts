@@ -1,12 +1,12 @@
 import { useToastSystem } from '@/hooks/use-toast-system';
+import { QUERY_KEYS } from '@/lib/query-keys';
 import {
   useMutation,
   UseMutationResult,
   useQueryClient,
 } from '@tanstack/react-query';
-import { QUERY_KEYS } from '@/lib/query-keys';
-import { loansPaidService } from '../services/loans-paid-service';
 import type { LoanPaymentBulkResponse } from '../schemas/loans-paid-api-response';
+import { loansPaidService } from '../services/loans-paid-service';
 
 export function useCreateLoanPaymentMutation(): UseMutationResult<
   { message: string },
@@ -22,7 +22,7 @@ export function useCreateLoanPaymentMutation(): UseMutationResult<
       loansPaidService.createLoanPayment(payment),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.loansPaid.lists(),
+        queryKey: QUERY_KEYS.loansPaid.all,
       });
       toast.success('Pago registrado exitosamente');
     },
@@ -45,7 +45,7 @@ export function useDeleteLoanPaymentMutation(): UseMutationResult<
     mutationFn: (id: string) => loansPaidService.deleteLoanPayment(id),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.loansPaid.lists(),
+        queryKey: QUERY_KEYS.loansPaid.all,
       });
       toast.success('Pago anulado exitosamente');
     },
@@ -64,11 +64,10 @@ export function useBulkUploadLoanPayment(): UseMutationResult<
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (formData: FormData) =>
-      loansPaidService.bulkUpload(formData),
+    mutationFn: (formData: FormData) => loansPaidService.bulkUpload(formData),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.loansPaid.lists(),
+        queryKey: QUERY_KEYS.loansPaid.all,
       });
     },
   });

@@ -1,4 +1,5 @@
 import { apiClient } from '@/lib/api-client';
+import { parseDateOnly } from '@/lib/format-utils';
 import {
   accountingEntryDeleteResponseSchema,
   accountingEntryImportResponseSchema,
@@ -26,18 +27,21 @@ export class AccountingEntriesService {
     if (params.search) searchParams.append('search', params.search);
     if (params.searchType) searchParams.append('searchType', params.searchType);
     if (params.status) searchParams.append('status', params.status);
-    if (params.accountingCycleId) searchParams.append('accountingCycleId', params.accountingCycleId);
+    if (params.accountingCycleId)
+      searchParams.append('accountingCycleId', params.accountingCycleId);
     if (params.startDate) searchParams.append('startDate', params.startDate);
     if (params.endDate) searchParams.append('endDate', params.endDate);
     if (params.sortBy) searchParams.append('sortBy', params.sortBy);
     if (params.sortOrder) searchParams.append('sortOrder', params.sortOrder);
 
-    const response = await apiClient.get(`/accounting/entries?${searchParams.toString()}`);
+    const response = await apiClient.get(
+      `/accounting/entries?${searchParams.toString()}`,
+    );
     const parsed = accountingEntryPaginationResponseSchema.parse(response.data);
 
     const transform = parsed.data.map((item) => ({
       ...item,
-      entryDate: new Date(item.entryDate),
+      entryDate: parseDateOnly(item.entryDate)!,
     }));
 
     return {
@@ -51,7 +55,7 @@ export class AccountingEntriesService {
     const parsed = accountingEntryResponseSchema.parse(response.data);
     return {
       ...parsed.data,
-      entryDate: new Date(parsed.data.entryDate),
+      entryDate: parseDateOnly(parsed.data.entryDate)!,
     };
   }
 
@@ -62,7 +66,10 @@ export class AccountingEntriesService {
 
   static async update(payload: AccountingEntry) {
     const { id, ...payloadWithoutId } = payload;
-    const response = await apiClient.patch(`/accounting/entries/${id}`, payloadWithoutId);
+    const response = await apiClient.patch(
+      `/accounting/entries/${id}`,
+      payloadWithoutId,
+    );
     return accountingEntryResponseSchema.parse(response.data).data;
   }
 
@@ -89,9 +96,13 @@ export class AccountingEntriesService {
   static async importExcel(file: File) {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await apiClient.post('/accounting/entries/import', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    const response = await apiClient.post(
+      '/accounting/entries/import',
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      },
+    );
     return accountingEntryImportResponseSchema.parse(response.data);
   }
 

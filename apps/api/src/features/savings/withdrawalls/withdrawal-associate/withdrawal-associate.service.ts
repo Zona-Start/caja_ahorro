@@ -1399,8 +1399,9 @@ export class WithdrawalAssociateService {
           associateCedula: associateRecord.cedula ?? '',
           withdrawalTypeDescription:
             withdrawalTypeRecord?.description ?? 'RETIRO DE HABERES',
-          withdrawalDate:
-            new Date(withdrawalRecord.withdrawalDate) ?? new Date(),
+          withdrawalDate: withdrawalRecord.withdrawalDate
+            ? new Date(withdrawalRecord.withdrawalDate)
+            : new Date(),
           requestedAmount: Number(withdrawalRecord.requestedAmount),
           administrativeFee: Number(withdrawalRecord.administrativeFee),
           isHouseInventary: withdrawalTypeRecord?.isHouseComercial

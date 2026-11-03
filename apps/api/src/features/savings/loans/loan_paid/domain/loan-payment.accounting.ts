@@ -108,6 +108,7 @@ export class LoanPaymentAccounting {
     interestAmount: number,
     tx: NodePgDatabase<typeof schema>,
     paymentRef: string,
+    paymentDate: Date = new Date(),
   ): Promise<void> {
     const fullname = loanData.associateFullname ?? 'ASOCIADO';
     const referenceValue = loanData.loanTypeName ?? 'Pago Prestamo';
@@ -124,7 +125,7 @@ export class LoanPaymentAccounting {
           category: 'SAVINGS_BANK',
           operationType: 'LOAN_PAYMENT_INDIVIDUAL',
           description: `ANULACIÓN: Pago de Préstamo - ${fullname} (Ref: ${paymentRef})`,
-          entryDate: new Date(),
+          entryDate: paymentDate,
           referenceValue,
           autoPostKey: 'AUTO_POST_ENTRY_LOANS_PAYMENT',
           currencyCode: CurrencyCodeEnum.VES,

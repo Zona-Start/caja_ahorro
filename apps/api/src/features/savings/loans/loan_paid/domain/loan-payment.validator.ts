@@ -394,6 +394,7 @@ export class LoanPaymentValidator {
         amountBase: loanPayments.amountBase,
         exchangeRate: loanPayments.exchangeRate,
         currencyCode: loanPayments.currencyCode,
+        paymentDate: loanPayments.paymentDate,
         customReference: loanPayments.customReference,
         loanId: loanPayments.loanId,
         statusPayment: loanPayments.status,

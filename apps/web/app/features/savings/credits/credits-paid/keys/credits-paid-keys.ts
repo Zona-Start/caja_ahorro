@@ -7,4 +7,5 @@ export const creditsPaidKeys = {
   detail: (id: string) => [...creditsPaidKeys.details(), id] as const,
   byCedula: (cedula: string) =>
     [...creditsPaidKeys.all, 'byCedula', cedula] as const,
+  byCedulaAll: () => [...creditsPaidKeys.all, 'byCedula'] as const,
 };

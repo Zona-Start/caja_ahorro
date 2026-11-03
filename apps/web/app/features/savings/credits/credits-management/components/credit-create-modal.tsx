@@ -1,26 +1,17 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
-import {
-  BadgeDollarSign,
-  Building2,
-  Calculator,
-  Settings,
-  Plus,
-  Trash2,
-  ShoppingCart,
-  Package,
-  ListChecks,
-  CheckCircle2,
-  AlertTriangle,
-  XCircle,
-  Search,
-  User,
-  Wallet,
-  Info,
-  Loader2,
-  X,
-} from 'lucide-react';
+import { AlertModal } from '@/components/shared/alert-modal';
+import { useCategoriesByTypeQuery } from '@/features/core/categories/hooks/use-categories-queries';
+import { CATEGORY_TYPES } from '@/features/core/categories/schemas/categories.schema';
+import { exchangeRatesService } from '@/features/core/exchange-rates/services/exchange-rates-service';
+import { ProductsService } from '@/features/inventory/products/services/products-service';
+import { useWithdrawalTypesQuery } from '@/features/savings/withdrawals/withdrawal/hooks/use-withdrawal-query';
+import { apiClient } from '@/lib/api-client';
+import { QUERY_KEYS } from '@/lib/query-keys';
+import { useAuthStore } from '@/stores/auth.store';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Button } from '@repo/shadcn/button';
+import { CustomCalendar } from '@repo/shadcn/custom-calendar';
 import {
   Dialog,
   DialogContent,
@@ -28,11 +19,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@repo/shadcn/dialog';
-import { Button } from '@repo/shadcn/button';
 import { Input } from '@repo/shadcn/input';
-import { Switch } from '@repo/shadcn/switch';
 import { Label } from '@repo/shadcn/label';
-import { Separator } from '@repo/shadcn/separator';
 import {
   Select,
   SelectContent,
@@ -40,36 +28,46 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/shadcn/select';
+import { Separator } from '@repo/shadcn/separator';
+import { Switch } from '@repo/shadcn/switch';
 import { Textarea } from '@repo/shadcn/textarea';
-import { Badge } from '@repo/shadcn/badge';
-import { useForm, useWatch } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-  creditManagementSchema,
+  AlertTriangle,
+  BadgeDollarSign,
+  Building2,
+  Calculator,
+  CheckCircle2,
+  Info,
+  ListChecks,
+  Loader2,
+  Package,
+  Plus,
+  Search,
+  Settings,
+  ShoppingCart,
+  Trash2,
+  User,
+  X,
+  XCircle,
+} from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
+import { useCreateCreditManagementMutation } from '../hooks/use-credits-management-mutation';
+import {
+  useBankAccounts,
+  useCreditTypes,
+  useProducts,
+  useSearchAssociate,
+  useSuppliers,
+} from '../hooks/use-credits-management-query';
+import { PAYMENT_TYPE_LABELS } from '../schemas/credits-management-options';
+import {
   creditDefaults,
+  creditManagementSchema,
   type CreditManagement,
 } from '../schemas/credits-management.schema';
-import {
-  useSearchAssociate,
-  useCreditTypes,
-  useBankAccounts,
-  useSuppliers,
-  useProducts,
-} from '../hooks/use-credits-management-query';
-import { useCreateCreditManagementMutation } from '../hooks/use-credits-management-mutation';
-import { useAuthStore } from '@/stores/auth.store';
-import { type SearchAssociateResult } from '../schemas/credits-management-api-response';
-import { PAYMENT_TYPE_LABELS } from '../schemas/credits-management-options';
-import { QUERY_KEYS } from '@/lib/query-keys';
-import { ProductsService } from '@/features/inventory/products/services/products-service';
-import { exchangeRatesService } from '@/features/core/exchange-rates/services/exchange-rates-service';
-import { useCategoriesByTypeQuery } from '@/features/core/categories/hooks/use-categories-queries';
-import { useWithdrawalTypesQuery } from '@/features/savings/withdrawals/withdrawal/hooks/use-withdrawal-query';
-import { apiClient } from '@/lib/api-client';
-import { CATEGORY_TYPES } from '@/features/core/categories/schemas/categories.schema';
 import { calculateFrenchAmortization } from '../utils/credit-amortization-utils';
-import { AlertModal } from '@/components/shared/alert-modal';
 
 function formatCurrency(n: number) {
   return n?.toLocaleString('es', { minimumFractionDigits: 2 }) ?? '0,00';
@@ -108,7 +106,9 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
   const { data: bankAccounts = [] } = useBankAccounts();
   const { data: suppliers = [] } = useSuppliers();
   const { data: products = [] } = useProducts();
-  const { data: specialDays = [] } = useCategoriesByTypeQuery(CATEGORY_TYPES.SPECIAL_DAYS);
+  const { data: specialDays = [] } = useCategoriesByTypeQuery(
+    CATEGORY_TYPES.SPECIAL_DAYS,
+  );
   const { data: withdrawalTypesResp } = useWithdrawalTypesQuery();
   const withdrawalTypes = withdrawalTypesResp?.data ?? [];
   const { mutate: saveCredit, isPending: isSaving } =
@@ -118,9 +118,8 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
     () =>
       Array.isArray(suppliers)
         ? suppliers.filter(
-          (s: any) =>
-            s.category === 'services' && s.isActive !== false,
-        )
+            (s: any) => s.category === 'services' && s.isActive !== false,
+          )
         : [],
     [suppliers],
   );
@@ -143,11 +142,12 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
   const watchTermUnits = useWatch({ control, name: 'termUnits' }) || 1;
   const watchStartDate = useWatch({ control, name: 'startDate' });
   const watchTermType = useWatch({ control, name: 'termType' });
-  const watchExpensesPct = useWatch({ control, name: 'expensesPercentage' }) || 0;
-  const watchHaberesPayment = useWatch({ control, name: 'haberesPayment' }) || 0;
+  const watchExpensesPct =
+    useWatch({ control, name: 'expensesPercentage' }) || 0;
+  const watchHaberesPayment =
+    useWatch({ control, name: 'haberesPayment' }) || 0;
   const watchCurrency = useWatch({ control, name: 'currencyCode' }) || 'VES';
-  const watchExchangeRate =
-    useWatch({ control, name: 'exchangeRate' }) || 0;
+  const watchExchangeRate = useWatch({ control, name: 'exchangeRate' }) || 0;
   const creditSymbol = watchCurrency !== 'VES' ? watchCurrency : 'Bs';
   const creditFx = watchCurrency !== 'VES' ? watchExchangeRate || 1 : 1;
   const haberesInCreditCurrency = watchHaberesPayment / creditFx;
@@ -165,7 +165,10 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
     control,
     name: 'withdrawalTypeId',
   });
-  const watchDirectPaymentMethod = useWatch({ control, name: 'directPaymentMethod' });
+  const watchDirectPaymentMethod = useWatch({
+    control,
+    name: 'directPaymentMethod',
+  });
 
   useEffect(() => {
     if (!watchCurrency || watchCurrency === 'VES') {
@@ -184,7 +187,10 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
       })
       .catch(() => {});
   }, [watchCurrency, setValue]);
-  const watchDirectPaymentBank = useWatch({ control, name: 'directPaymentBankAccountId' });
+  const watchDirectPaymentBank = useWatch({
+    control,
+    name: 'directPaymentBankAccountId',
+  });
 
   const selectedType = useMemo(
     () =>
@@ -332,7 +338,14 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
       watchStartDate || new Date(),
       expensesAmount,
     );
-  }, [amortizableAmount, watchRate, watchTermUnits, watchTermType, watchStartDate, expensesAmount]);
+  }, [
+    amortizableAmount,
+    watchRate,
+    watchTermUnits,
+    watchTermType,
+    watchStartDate,
+    expensesAmount,
+  ]);
 
   const totalInterest = amortData?.totalInterest ?? 0;
 
@@ -462,9 +475,7 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
 
   const addProductItem = useCallback(async () => {
     if (!selectedProduct || !Array.isArray(products)) return;
-    const prod = products.find(
-      (p: any) => p.id === selectedProduct,
-    ) as any;
+    const prod = products.find((p: any) => p.id === selectedProduct) as any;
     if (!prod) return;
 
     try {
@@ -472,9 +483,7 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
       // El precio de venta está fijado en divisa; el monto en Bs se calcula a la
       // tasa del día de la venta.
       const currency = (productDetail.currencyCode ?? 'VES') as
-        | 'VES'
-        | 'USD'
-        | 'EUR';
+        'VES' | 'USD' | 'EUR';
       const saleReference = Number(
         productDetail.salePrice ??
           productDetail.bsPriceAmount ??
@@ -554,9 +563,9 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
           ? {
               ...it,
               quantity: qty,
-              totalPrice: +((it.unitPriceBs ?? it.unitPrice ?? 0) * qty).toFixed(
-                2,
-              ),
+              totalPrice: +(
+                (it.unitPriceBs ?? it.unitPrice ?? 0) * qty
+              ).toFixed(2),
             }
           : it,
       ),
@@ -614,31 +623,26 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
             : undefined,
         creditItems: casaComercial
           ? items.map((it) => ({
-            // La venta se registra en la moneda del crédito.
-            agreedSellingPrice: +(it.totalPrice / creditFx).toFixed(2),
-            itemId: it.productId || undefined,
-            itemType: it.type === 'product'
-              ? ('PRODUCT' as const)
-              : ('EXTERNAL' as const),
-            itemDescription: it.description || it.productName || undefined,
-            quantity: it.quantity,
-            saleDate: new Date(),
-            days: it.specialDayCategoryId || undefined,
-          }))
+              // La venta se registra en la moneda del crédito.
+              agreedSellingPrice: +(it.totalPrice / creditFx).toFixed(2),
+              itemId: it.productId || undefined,
+              itemType:
+                it.type === 'product'
+                  ? ('PRODUCT' as const)
+                  : ('EXTERNAL' as const),
+              itemDescription: it.description || it.productName || undefined,
+              quantity: it.quantity,
+              saleDate: new Date(),
+              days: it.specialDayCategoryId || undefined,
+            }))
           : undefined,
         itemsJson: casaComercial ? JSON.stringify(items) : undefined,
         haberesPayment: Number(data.haberesPayment || 0),
         directPayment: Number(data.directPayment || 0),
       };
 
-      // El backend rechaza una tasa de interés igual a 0 (`.positive()`). Si no
-      // hay una tasa válida mayor a 0, se omite para que el API use la tasa
-      // configurada en el tipo de crédito.
-      if (Number.isFinite(rate) && rate > 0) {
-        formatted.interestRate = rate;
-      } else {
-        delete formatted.interestRate;
-      }
+      // Se envía siempre la tasa elegida, incluso si es 0%.
+      formatted.interestRate = Number.isFinite(rate) ? rate : 0;
 
       saveCredit(formatted, {
         onSuccess: () => {
@@ -661,7 +665,12 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
     associateData?.hasPayrollCredit;
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) handleClose();
+      }}
+    >
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[700px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -679,13 +688,22 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
               <Input
                 placeholder="Ingrese Cédula del Asociado..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                onChange={(e) =>
+                  setSearchQuery(e.target.value.replace(/\D/g, '').slice(0, 8))
+                }
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 disabled={searching}
               />
             </div>
-            <Button onClick={handleSearch} disabled={!searchQuery.trim() || searching}>
-              {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+            <Button
+              onClick={handleSearch}
+              disabled={!searchQuery.trim() || searching}
+            >
+              {searching ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Search className="h-4 w-4" />
+              )}
               <span className="ml-2">Buscar</span>
             </Button>
           </div>
@@ -693,7 +711,9 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
           {searching && !associateData && (
             <div className="text-center py-8">
               <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-              <p className="text-muted-foreground mt-2">Validando asociado...</p>
+              <p className="text-muted-foreground mt-2">
+                Validando asociado...
+              </p>
             </div>
           )}
 
@@ -715,38 +735,56 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
               </h3>
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Nombre y Apellido:</span>
-                  <span className="text-sm font-bold">{associateData.associate.fullname}</span>
+                  <span className="text-sm text-muted-foreground">
+                    Nombre y Apellido:
+                  </span>
+                  <span className="text-sm font-bold">
+                    {associateData.associate.fullname}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Cédula:</span>
-                  <span className="text-sm font-mono">{associateData.associate.cedula}</span>
+                  <span className="text-sm font-mono">
+                    {associateData.associate.cedula}
+                  </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Nro. Cuenta:</span>
-                  <span className="text-sm font-mono font-semibold">{associateData.account?.accountNumber || '—'}</span>
+                  <span className="text-sm text-muted-foreground">
+                    Nro. Cuenta:
+                  </span>
+                  <span className="text-sm font-mono font-semibold">
+                    {associateData.account?.accountNumber || '—'}
+                  </span>
                 </div>
                 <Separator />
                 <div className="flex justify-between items-end">
-                  <span className="text-sm text-muted-foreground">Saldo Total:</span>
+                  <span className="text-sm text-muted-foreground">
+                    Saldo Total:
+                  </span>
                   <span className="text-lg font-black text-primary">
                     {formatCurrency(associateData.balance)} Bs
                   </span>
                 </div>
                 <div className="flex justify-between items-end">
-                  <span className="text-sm text-muted-foreground">80% Disponible:</span>
+                  <span className="text-sm text-muted-foreground">
+                    80% Disponible:
+                  </span>
                   <span className="text-lg font-black text-[#305AD9]">
                     {formatCurrency(associateData.available80)} Bs
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Cap. Pago (30%):</span>
+                  <span className="text-sm text-muted-foreground">
+                    Cap. Pago (30%):
+                  </span>
                   <span className="text-sm font-mono font-semibold text-emerald-600 dark:text-emerald-400">
                     {formatCurrency(associateData.paymentCapacity)} Bs/mes
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Salario Base:</span>
+                  <span className="text-sm text-muted-foreground">
+                    Salario Base:
+                  </span>
                   <span className="text-sm font-mono">
                     {formatCurrency(associateData.baseSalary)} Bs
                   </span>
@@ -755,24 +793,24 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                 {(associateData.hasActiveLoan ||
                   associateData.hasActiveCredit ||
                   associateData.hasPayrollCredit) && (
-                    <div className="flex flex-wrap gap-2 pt-2">
-                      {associateData.hasActiveLoan && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 text-destructive px-2.5 py-0.5 text-xs font-medium">
-                          <XCircle className="h-3 w-3" /> Préstamo Activo
-                        </span>
-                      )}
-                      {associateData.hasActiveCredit && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 text-destructive px-2.5 py-0.5 text-xs font-medium">
-                          <XCircle className="h-3 w-3" /> Crédito Activo
-                        </span>
-                      )}
-                      {associateData.hasPayrollCredit && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 text-destructive px-2.5 py-0.5 text-xs font-medium">
-                          <XCircle className="h-3 w-3" /> Credinomina Activo
-                        </span>
-                      )}
-                    </div>
-                  )}
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    {associateData.hasActiveLoan && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 text-destructive px-2.5 py-0.5 text-xs font-medium">
+                        <XCircle className="h-3 w-3" /> Préstamo Activo
+                      </span>
+                    )}
+                    {associateData.hasActiveCredit && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 text-destructive px-2.5 py-0.5 text-xs font-medium">
+                        <XCircle className="h-3 w-3" /> Crédito Activo
+                      </span>
+                    )}
+                    {associateData.hasPayrollCredit && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 text-destructive px-2.5 py-0.5 text-xs font-medium">
+                        <XCircle className="h-3 w-3" /> Credinomina Activo
+                      </span>
+                    )}
+                  </div>
+                )}
                 {!hasBlocks && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 px-2.5 py-0.5 text-xs font-medium">
                     <CheckCircle2 className="h-3 w-3" /> Sin bloqueos
@@ -789,7 +827,9 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
           {!searching && !associateData && !submittedSearch && (
             <div className="text-center py-6 border border-dashed rounded-lg">
               <User className="h-8 w-8 mx-auto text-muted-foreground/50" />
-              <p className="text-muted-foreground mt-2 text-sm">Ningún asociado seleccionado</p>
+              <p className="text-muted-foreground mt-2 text-sm">
+                Ningún asociado seleccionado
+              </p>
             </div>
           )}
 
@@ -866,7 +906,9 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                       <Label>Moneda del Crédito *</Label>
                       <Select
                         value={watchCurrency}
-                        onValueChange={(v) => setValue('currencyCode', v as any)}
+                        onValueChange={(v) =>
+                          setValue('currencyCode', v as any)
+                        }
                       >
                         <SelectTrigger className="mt-1">
                           <SelectValue />
@@ -907,7 +949,9 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                           step="0.01"
                           min="0"
                           className="mt-1"
-                          {...register('requestedAmount', { valueAsNumber: true })}
+                          {...register('requestedAmount', {
+                            valueAsNumber: true,
+                          })}
                         />
                         {errors.requestedAmount && (
                           <p className="text-xs text-destructive mt-1">
@@ -969,19 +1013,13 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                     </div>
                     <div>
                       <Label>Fecha de Inicio *</Label>
-                      <Input
-                        type="date"
+                      <CustomCalendar
                         className="mt-1"
-                        value={
-                          watchStartDate
-                            ? new Date(watchStartDate)
-                              .toISOString()
-                              .slice(0, 10)
-                            : ''
-                        }
-                        onChange={(e) =>
-                          setValue('startDate', new Date(e.target.value))
-                        }
+                        value={watchStartDate ? new Date(watchStartDate) : null}
+                        onChange={(date) => {
+                          if (date) setValue('startDate', date);
+                        }}
+                        disabled={isSaving}
                       />
                     </div>
                     <div>
@@ -1048,10 +1086,7 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                               Inventario Interno
                             </SelectItem>
                             {serviceSuppliers.map((s: any) => (
-                              <SelectItem
-                                key={s.id}
-                                value={`supplier_${s.id}`}
-                              >
+                              <SelectItem key={s.id} value={`supplier_${s.id}`}>
                                 {s.name || s.businessName} - {s.rif}
                               </SelectItem>
                             ))}
@@ -1082,10 +1117,7 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                                     ? products
                                     : []
                                   ).map((p: any) => (
-                                    <SelectItem
-                                      key={p.id}
-                                      value={p.id}
-                                    >
+                                    <SelectItem key={p.id} value={p.id}>
                                       {p.name}
                                     </SelectItem>
                                   ))}
@@ -1101,10 +1133,7 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                                 value={productQty}
                                 onChange={(e) =>
                                   setProductQty(
-                                    Math.max(
-                                      1,
-                                      parseInt(e.target.value) || 1,
-                                    ),
+                                    Math.max(1, parseInt(e.target.value) || 1),
                                   )
                                 }
                               />
@@ -1152,10 +1181,10 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                                 <SelectContent>
                                   {Array.isArray(specialDays)
                                     ? specialDays.map((sd: any) => (
-                                      <SelectItem key={sd.id} value={sd.id}>
-                                        {sd.name}
-                                      </SelectItem>
-                                    ))
+                                        <SelectItem key={sd.id} value={sd.id}>
+                                          {sd.name}
+                                        </SelectItem>
+                                      ))
                                     : null}
                                 </SelectContent>
                               </Select>
@@ -1169,10 +1198,7 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                                 value={servQty}
                                 onChange={(e) =>
                                   setServQty(
-                                    Math.max(
-                                      1,
-                                      parseInt(e.target.value) || 1,
-                                    ),
+                                    Math.max(1, parseInt(e.target.value) || 1),
                                   )
                                 }
                               />
@@ -1254,11 +1280,10 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                                       inputMode="decimal"
                                       value={it.unitPrice ?? ''}
                                       onChange={(e) => {
-                                        const cleaned =
-                                          e.target.value.replace(
-                                            /[^0-9.]/g,
-                                            '',
-                                          );
+                                        const cleaned = e.target.value.replace(
+                                          /[^0-9.]/g,
+                                          '',
+                                        );
                                         updateItemPrice(
                                           it.id,
                                           cleaned ? parseFloat(cleaned) : 0,
@@ -1274,7 +1299,8 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                                           {Number(it.exchangeRate || 1).toFixed(
                                             2,
                                           )}{' '}
-                                          = {formatCurrency(it.unitPriceBs ?? 0)}
+                                          ={' '}
+                                          {formatCurrency(it.unitPriceBs ?? 0)}
                                         </div>
                                       )}
                                   </td>
@@ -1401,7 +1427,9 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                         </div>
                       )}
                       <div>
-                        <Label>Monto a pagar de haberes (Bs) (genera retiro)</Label>
+                        <Label>
+                          Monto a pagar de haberes (Bs) (genera retiro)
+                        </Label>
                         <Input
                           type="number"
                           min="0"
@@ -1474,41 +1502,40 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                           </Select>
                         </div>
                       </div>
-                      {watchDirectPayment > 0 &&
-                        watchDirectPaymentMethod && (
-                          <div className="grid grid-cols-2 gap-3">
-                            <div>
-                              <Label>Referencia de pago</Label>
-                              <Input
-                                className="mt-1"
-                                {...register('directPaymentReference')}
-                              />
-                            </div>
-                            <div>
-                              <Label>Banco receptor</Label>
-                              <Select
-                                value={watchDirectPaymentBank || ''}
-                                onValueChange={(v) =>
-                                  setValue('directPaymentBankAccountId', v)
-                                }
-                              >
-                                <SelectTrigger className="mt-1 w-full">
-                                  <SelectValue placeholder="Seleccionar..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {(Array.isArray(bankAccounts)
-                                    ? bankAccounts
-                                    : []
-                                  ).map((b: any) => (
-                                    <SelectItem key={b.id} value={b.id}>
-                                      {b.accountName || b.accountNumber}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
+                      {watchDirectPayment > 0 && watchDirectPaymentMethod && (
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label>Referencia de pago</Label>
+                            <Input
+                              className="mt-1"
+                              {...register('directPaymentReference')}
+                            />
                           </div>
-                        )}
+                          <div>
+                            <Label>Banco receptor</Label>
+                            <Select
+                              value={watchDirectPaymentBank || ''}
+                              onValueChange={(v) =>
+                                setValue('directPaymentBankAccountId', v)
+                              }
+                            >
+                              <SelectTrigger className="mt-1 w-full">
+                                <SelectValue placeholder="Seleccionar..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {(Array.isArray(bankAccounts)
+                                  ? bankAccounts
+                                  : []
+                                ).map((b: any) => (
+                                  <SelectItem key={b.id} value={b.id}>
+                                    {b.accountName || b.accountNumber}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1543,126 +1570,145 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Cuota por Plazo:</span>
+                      <span className="text-muted-foreground">
+                        Cuota por Plazo:
+                      </span>
                       <span className="font-mono font-bold text-[#305AD9]">
                         {formatCurrency(amortData?.monthlyPayment ?? 0)}{' '}
                         {creditSymbol}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Interés Total:</span>
+                      <span className="text-muted-foreground">
+                        Interés Total:
+                      </span>
                       <span className="font-mono">
                         {formatCurrency(totalInterest)} {creditSymbol}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Gasto Administrativo:</span>
+                      <span className="text-muted-foreground">
+                        Gasto Administrativo:
+                      </span>
                       <span className="font-mono">
                         {formatCurrency(expensesAmount)} {creditSymbol}
                       </span>
                     </div>
                     <Separator />
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Total a Pagar (Capital + Interés + Gasto):</span>
+                      <span className="text-muted-foreground">
+                        Total a Pagar (Capital + Interés + Gasto):
+                      </span>
                       <span className="font-mono font-bold text-lg">
-                        {formatCurrency(watchAmount + totalInterest + expensesAmount)} {creditSymbol}
+                        {formatCurrency(
+                          watchAmount + totalInterest + expensesAmount,
+                        )}{' '}
+                        {creditSymbol}
                       </span>
                     </div>
                     {useSpecial && watchHaberesPayment > 0 && (
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Pago de haberes:</span>
+                        <span className="text-muted-foreground">
+                          Pago de haberes:
+                        </span>
                         <span className="font-mono text-destructive">
-                          - {formatCurrency(haberesInCreditCurrency)} {creditSymbol}
+                          - {formatCurrency(haberesInCreditCurrency)}{' '}
+                          {creditSymbol}
                         </span>
                       </div>
                     )}
                     {useSpecial && watchDirectPayment > 0 && (
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Pago directo:</span>
+                        <span className="text-muted-foreground">
+                          Pago directo:
+                        </span>
                         <span className="font-mono text-destructive">
                           - {formatCurrency(watchDirectPayment)} {creditSymbol}
                         </span>
                       </div>
                     )}
-                    {useSpecial && (watchHaberesPayment > 0 || watchDirectPayment > 0) && <Separator />}
+                    {useSpecial &&
+                      (watchHaberesPayment > 0 || watchDirectPayment > 0) && (
+                        <Separator />
+                      )}
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Monto a amortizar en cuotas:</span>
+                      <span className="text-muted-foreground">
+                        Monto a amortizar en cuotas:
+                      </span>
                       <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400">
                         {formatCurrency(
-                          Math.max(0, watchAmount + totalInterest + expensesAmount - haberesInCreditCurrency - watchDirectPayment),
+                          Math.max(
+                            0,
+                            watchAmount +
+                              totalInterest +
+                              expensesAmount -
+                              haberesInCreditCurrency -
+                              watchDirectPayment,
+                          ),
                         )}{' '}
                         {creditSymbol}
                       </span>
                     </div>
                   </div>
 
-                  {amortData?.schedule &&
-                    amortData.schedule.length > 0 && (
-                      <div className="rounded-lg border bg-background p-3 mt-2">
-                        <p className="text-xs font-semibold text-muted-foreground mb-2">
-                          TABLA DE AMORTIZACIÓN ({creditSymbol})
-                        </p>
-                        <div className="max-h-40 overflow-y-auto">
-                          <table className="w-full text-xs">
-                            <thead>
-                              <tr className="border-b">
-                                <th className="py-1 text-left">#</th>
-                                <th className="py-1 text-left">
-                                  Vencimiento
-                                </th>
-                                <th className="py-1 text-right">Capital</th>
-                                <th className="py-1 text-right">Interés</th>
-                                <th className="py-1 text-right">Cuota</th>
-                                <th className="py-1 text-right">Saldo</th>
+                  {amortData?.schedule && amortData.schedule.length > 0 && (
+                    <div className="rounded-lg border bg-background p-3 mt-2">
+                      <p className="text-xs font-semibold text-muted-foreground mb-2">
+                        TABLA DE AMORTIZACIÓN ({creditSymbol})
+                      </p>
+                      <div className="max-h-40 overflow-y-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="border-b">
+                              <th className="py-1 text-left">#</th>
+                              <th className="py-1 text-left">Vencimiento</th>
+                              <th className="py-1 text-right">Capital</th>
+                              <th className="py-1 text-right">Interés</th>
+                              <th className="py-1 text-right">Cuota</th>
+                              <th className="py-1 text-right">Saldo</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {amortData.schedule.map((row: any) => (
+                              <tr
+                                key={row.installmentNumber}
+                                className="border-b last:border-0"
+                              >
+                                <td className="py-1">
+                                  {row.installmentNumber}
+                                </td>
+                                <td className="py-1">
+                                  {new Date(row.dueDate).toLocaleDateString(
+                                    'es',
+                                  )}
+                                </td>
+                                <td className="py-1 text-right font-mono">
+                                  {formatCurrency(
+                                    parseFloat(row.principalAmount),
+                                  )}
+                                </td>
+                                <td className="py-1 text-right font-mono">
+                                  {formatCurrency(
+                                    parseFloat(row.interestAmount),
+                                  )}
+                                </td>
+                                <td className="py-1 text-right font-mono">
+                                  {formatCurrency(
+                                    parseFloat(row.totalInstallmentAmount),
+                                  )}
+                                </td>
+                                <td className="py-1 text-right font-mono">
+                                  {formatCurrency(
+                                    parseFloat(row.principalBalancePending),
+                                  )}
+                                </td>
                               </tr>
-                            </thead>
-                            <tbody>
-                              {amortData.schedule.map(
-                                (row: any) => (
-                                  <tr
-                                    key={row.installmentNumber}
-                                    className="border-b last:border-0"
-                                  >
-                                    <td className="py-1">
-                                      {row.installmentNumber}
-                                    </td>
-                                    <td className="py-1">
-                                      {new Date(
-                                        row.dueDate,
-                                      ).toLocaleDateString('es')}
-                                    </td>
-                                    <td className="py-1 text-right font-mono">
-                                      {formatCurrency(
-                                        parseFloat(row.principalAmount),
-                                      )}
-                                    </td>
-                                    <td className="py-1 text-right font-mono">
-                                      {formatCurrency(
-                                        parseFloat(row.interestAmount),
-                                      )}
-                                    </td>
-                                    <td className="py-1 text-right font-mono">
-                                      {formatCurrency(
-                                        parseFloat(
-                                          row.totalInstallmentAmount,
-                                        ),
-                                      )}
-                                    </td>
-                                    <td className="py-1 text-right font-mono">
-                                      {formatCurrency(
-                                        parseFloat(
-                                          row.principalBalancePending,
-                                        ),
-                                      )}
-                                    </td>
-                                  </tr>
-                                ),
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
-                    )}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1677,27 +1723,26 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                     <AlertTriangle className="h-4 w-4 text-destructive" />
                   )}
                   <span className="text-sm font-semibold uppercase text-muted-foreground">
-                    {rules.canSave
-                      ? 'Reglas Cumplidas'
-                      : 'Reglas Bloqueantes'}
+                    {rules.canSave ? 'Reglas Cumplidas' : 'Reglas Bloqueantes'}
                   </span>
                 </div>
                 <ul className="space-y-1">
                   {rules.messages.map((msg, i) => (
                     <li
                       key={i}
-                      className={`text-xs flex items-center gap-1.5 ${msg.includes('Bloqueado') ||
+                      className={`text-xs flex items-center gap-1.5 ${
+                        msg.includes('Bloqueado') ||
                         msg.includes('supera') ||
                         msg.includes('mínimo') ||
                         msg.includes('máximo')
-                        ? 'text-destructive'
-                        : 'text-emerald-600 dark:text-emerald-400'
-                        }`}
+                          ? 'text-destructive'
+                          : 'text-emerald-600 dark:text-emerald-400'
+                      }`}
                     >
                       {msg.includes('Bloqueado') ||
-                        msg.includes('supera') ||
-                        msg.includes('mínimo') ||
-                        msg.includes('máximo') ? (
+                      msg.includes('supera') ||
+                      msg.includes('mínimo') ||
+                      msg.includes('máximo') ? (
                         <XCircle className="h-3 w-3 flex-shrink-0" />
                       ) : (
                         <CheckCircle2 className="h-3 w-3 flex-shrink-0" />
@@ -1710,11 +1755,7 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
 
               {/* Botones */}
               <div className="flex justify-end gap-2 pt-4 border-t sticky bottom-0 bg-background pb-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleClose}
-                >
+                <Button type="button" variant="outline" onClick={handleClose}>
                   Cancelar
                 </Button>
                 <Button

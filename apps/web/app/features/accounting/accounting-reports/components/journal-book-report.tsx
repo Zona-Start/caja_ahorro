@@ -345,7 +345,7 @@ export function JournalBookReport() {
                   <div className="bg-muted/50 px-4 py-3 grid grid-cols-3 gap-4 text-sm">
                     <div>
                       <span className="font-medium">Fecha:</span>{' '}
-                      {new Date(entry.entryDate).toLocaleDateString()}
+                      {formatDbDate(entry.entryDate)}
                     </div>
                     <div>
                       <span className="font-medium">Asiento:</span>{' '}

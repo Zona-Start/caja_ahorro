@@ -11,6 +11,8 @@ export function OverviewLoans() {
     approved: number;
     disbursed: number;
     rejected: number;
+    inPayment: number;
+    paid: number;
   };
 
   return (
@@ -18,7 +20,9 @@ export function OverviewLoans() {
       <div className="grid gap-6 md:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Préstamos Pendientes</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Préstamos Solicitados
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats?.pending ?? 0}</div>
@@ -27,16 +31,9 @@ export function OverviewLoans() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Préstamos Aprobados</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.approved ?? 0}</div>
-            <p className="text-xs text-muted-foreground">Listos para desembolso</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Préstamos Desembolsados</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Préstamos Desembolsados
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats?.disbursed ?? 0}</div>
@@ -45,10 +42,23 @@ export function OverviewLoans() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Préstamos Rechazados</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Préstamos en Pago
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.rejected ?? 0}</div>
+            <div className="text-2xl font-bold">{stats?.inPayment ?? 0}</div>
+            <p className="text-xs text-muted-foreground">Con cuotas en curso</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">
+              Préstamos Pagados
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.paid ?? 0}</div>
             <p className="text-xs text-muted-foreground">Finalizados</p>
           </CardContent>
         </Card>

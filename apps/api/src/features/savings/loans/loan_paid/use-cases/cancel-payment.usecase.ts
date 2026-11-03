@@ -122,6 +122,9 @@ export class CancelPaymentUseCase {
               AssociateMovementTypeEnum.LOAN_PAYMENT_REVERSAL_CREDIT,
             amount: paymentAmountBase,
             currencyCode: 'VES' as CurrencyCodeEnum,
+            transactionDate: payment.paymentDate
+              ? new Date(payment.paymentDate)
+              : undefined,
             description: `REVERSO PAGO PRESTAMO - REF: ${payment.customReference}`,
             referenceId: payment.id,
             referenceType: 'loanPayments',
@@ -148,6 +151,7 @@ export class CancelPaymentUseCase {
         Number((totalInterestReverted * reversalRate).toFixed(2)),
         tx,
         payment.customReference ?? '',
+        payment.paymentDate ? new Date(payment.paymentDate) : new Date(),
       );
 
       this.audit.logPaymentCancelled(

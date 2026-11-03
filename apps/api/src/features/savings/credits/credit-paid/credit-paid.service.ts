@@ -1754,6 +1754,7 @@ export class CreditPaidService implements OnModuleInit {
         amount: creditPayments.amount,
         currencyCode: creditPayments.currencyCode,
         amountBase: creditPayments.amountBase,
+        paymentDate: creditPayments.paymentDate,
         customReference: creditPayments.customReference,
       })
       .from(creditPayments)
@@ -1891,7 +1892,10 @@ export class CreditPaidService implements OnModuleInit {
         .leftJoin(associates, eq(associates.id, credits.associateId))
         .where(eq(credits.id, payment.creditId));
 
-      const dateStr = format(new Date(), 'dd/MM/yyyy');
+      const entryDate = payment.paymentDate
+        ? new Date(payment.paymentDate)
+        : new Date();
+      const dateStr = format(entryDate, 'dd/MM/yyyy');
       // La contabilidad se lleva en Bs: los pagos en divisa usan su
       // equivalente congelado al momento del pago.
       const reversedAmount =
@@ -1910,7 +1914,7 @@ export class CreditPaidService implements OnModuleInit {
           description: `ANULACIÓN: Pago de Crédito - ${
             creditInfo?.associateFullname ?? 'ASOCIADO'
           } (Ref: ${payment.customReference ?? paymentId})`,
-          entryDate: new Date(),
+          entryDate,
           referenceValue: creditInfo?.creditType ?? 'CREDITOS',
           currencyCode: CurrencyCodeEnum.VES,
           originReferenceId: String(paymentId),

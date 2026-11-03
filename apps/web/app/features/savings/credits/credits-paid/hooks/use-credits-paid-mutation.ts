@@ -1,12 +1,12 @@
 import { useToastSystem } from '@/hooks/use-toast-system';
+import { QUERY_KEYS } from '@/lib/query-keys';
 import {
   useMutation,
   UseMutationResult,
   useQueryClient,
 } from '@tanstack/react-query';
-import { QUERY_KEYS } from '@/lib/query-keys';
-import { creditsPaidService } from '../services/credits-paid-service';
 import type { CreditPaymentBulkResponse } from '../schemas/credits-paid-api-response';
+import { creditsPaidService } from '../services/credits-paid-service';
 
 export function useCreateCreditPaymentMutation(): UseMutationResult<
   { message: string },
@@ -22,7 +22,7 @@ export function useCreateCreditPaymentMutation(): UseMutationResult<
       creditsPaidService.createCreditPayment(payment),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.creditsPaid.lists(),
+        queryKey: QUERY_KEYS.creditsPaid.all,
       });
       toast.success('Pago registrado exitosamente');
     },
@@ -45,7 +45,7 @@ export function useDeleteCreditPaymentMutation(): UseMutationResult<
     mutationFn: (id: string) => creditsPaidService.deleteCreditPayment(id),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.creditsPaid.lists(),
+        queryKey: QUERY_KEYS.creditsPaid.all,
       });
       toast.success('Pago cancelado exitosamente');
     },
@@ -67,7 +67,7 @@ export function useBulkUploadCreditPayment(): UseMutationResult<
     mutationFn: (formData: FormData) => creditsPaidService.bulkUpload(formData),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.creditsPaid.lists(),
+        queryKey: QUERY_KEYS.creditsPaid.all,
       });
     },
   });
