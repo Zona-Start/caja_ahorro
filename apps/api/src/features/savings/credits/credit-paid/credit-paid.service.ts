@@ -1,3 +1,4 @@
+import { calculateForeignExchangeGain } from '@/common/utils/foreign-exchange-gain';
 import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
 import { computePendingBalance } from '@/common/utils/pending-balance';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
@@ -35,7 +36,7 @@ import {
 } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { format } from 'date-fns';
-import { and, desc, eq, ilike, inArray, ne, SQL, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, ilike, inArray, ne, SQL, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as ExcelJS from 'exceljs';
 import { AssociateAccountsMovementsService } from '../../parnerts/associate-accounts-movements/associate-accounts-movements.service';
@@ -128,6 +129,7 @@ export class CreditPaidService implements OnModuleInit {
     amount: number,
     db: NodePgDatabase<typeof schema> = this.db,
     pendingBalanceBase?: number,
+    preserveRemainderAsExcess = false,
   ): Promise<{
     paidInstallmentDetails: {
       id: string;
@@ -268,6 +270,7 @@ export class CreditPaidService implements OnModuleInit {
         }
       | undefined;
     let remainingPaymentAmount = amount;
+    let coveredAnyInstallment = false;
 
     for (const installment of pendingInstallments) {
       const installmentTotal = Number(installment.totalInstallmentAmount);
@@ -286,6 +289,7 @@ export class CreditPaidService implements OnModuleInit {
         remainingPaymentAmount >= dueAmountExact - EPSILON_COMPARISON ||
         diffBetweenPaymentAndDue <= ROUNDING_ACCEPTANCE_TOLERANCE
       ) {
+        coveredAnyInstallment = true;
         const princInst = Number(installment.principalAmount);
         const intInst = Number(installment.interestAmount);
         const alreadyPaid = Number(installment.paidAmount || 0);
@@ -308,6 +312,7 @@ export class CreditPaidService implements OnModuleInit {
         );
 
         if (
+          !preserveRemainderAsExcess &&
           remainingPaymentAmount > EPSILON_COMPARISON &&
           remainingPaymentAmount <= ROUNDING_ACCEPTANCE_TOLERANCE
         ) {
@@ -315,6 +320,12 @@ export class CreditPaidService implements OnModuleInit {
           break;
         }
       } else {
+        // En divisa, el sobrante después de cubrir cuotas completas se guarda
+        // como cobro en exceso en lugar de aplicarse como abono parcial.
+        if (preserveRemainderAsExcess && coveredAnyInstallment) {
+          break;
+        }
+
         const princInst = Number(installment.principalAmount);
         const intInst = Number(installment.interestAmount);
         const alreadyPaid = Number(installment.paidAmount || 0);
@@ -347,15 +358,20 @@ export class CreditPaidService implements OnModuleInit {
       }
 
       if (remainingPaymentAmount <= EPSILON_COMPARISON) {
-        remainingPaymentAmount = 0;
+        if (!preserveRemainderAsExcess || remainingPaymentAmount <= 0) {
+          remainingPaymentAmount = 0;
+        }
         break;
       }
     }
 
     if (
+      !preserveRemainderAsExcess &&
       remainingPaymentAmount < EPSILON_COMPARISON &&
       remainingPaymentAmount > -EPSILON_COMPARISON
     ) {
+      remainingPaymentAmount = 0;
+    } else if (preserveRemainderAsExcess && remainingPaymentAmount < 0) {
       remainingPaymentAmount = 0;
     }
 
@@ -427,6 +443,7 @@ export class CreditPaidService implements OnModuleInit {
           amount,
           tx,
           pendingBalanceBase,
+          rateCurrency !== 'VES',
         );
 
       let totalPrincipalPaid = 0;
@@ -559,6 +576,55 @@ export class CreditPaidService implements OnModuleInit {
         },
       );
 
+      let foreignExchangeGain = 0;
+      const isForeignCredit =
+        !!lockedCredit.currencyCode &&
+        lockedCredit.currencyCode !== 'VES' &&
+        Number(lockedCredit.exchangeRate ?? 0) > 0;
+      if (!liquidationActive && isForeignCredit && newBalancePending <= 0) {
+        // Reconstruye el saldo contable en Bs con los pagos anteriores; la
+        // diferencia cambiaria acumulada se reconoce al liquidar la deuda.
+        const priorPayments = await tx
+          .select({
+            balancePending: creditPayments.balancePending,
+            exchangeRate: creditPayments.exchangeRate,
+          })
+          .from(creditPayments)
+          .where(
+            and(
+              eq(creditPayments.creditId, creditId),
+              eq(creditPayments.tenantId, tenantId),
+              eq(creditPayments.status, 'DONE'),
+              ne(creditPayments.id, insertedPayment.id),
+            ),
+          )
+          .orderBy(asc(creditPayments.createdAt));
+
+        let originalPrincipalForeign = pendingBalanceBase;
+        if (priorPayments.length > 0) {
+          const scheduleRows = await tx
+            .select({
+              principalAmount: creditAmortizationSchedule.principalAmount,
+            })
+            .from(creditAmortizationSchedule)
+            .where(eq(creditAmortizationSchedule.creditId, creditId));
+          originalPrincipalForeign = scheduleRows.reduce(
+            (sum, row) => sum + Number(row.principalAmount ?? 0),
+            0,
+          );
+        }
+
+        foreignExchangeGain = calculateForeignExchangeGain({
+          currencyCode: lockedCredit.currencyCode,
+          paymentRate,
+          creationRate: Number(lockedCredit.exchangeRate ?? 0),
+          pendingPrincipalForeign: pendingBalanceBase,
+          originalPrincipalForeign,
+          priorPayments,
+          closesDebt: true,
+        });
+      }
+
       return {
         transation: true,
         insertedPaymentId: insertedPayment.id,
@@ -568,6 +634,8 @@ export class CreditPaidService implements OnModuleInit {
         totalInterestPaid,
         paymentRate,
         paymentAmountBase,
+        foreignExchangeGain,
+        closesDebt: newBalancePending <= 0,
       };
     });
 
@@ -604,10 +672,9 @@ export class CreditPaidService implements OnModuleInit {
       const roundedPayment = Number(result.appliedAmountExact.toFixed(2));
       const roundedInterest = Number(result.totalInterestPaid.toFixed(2));
 
-      // Pago en exceso: se condona el interés de todas las cuotas cubiertas y
-      // todo el dinero va a la cuenta del crédito (capital).
-      const hasExcess = result.balanceInFavorValue > 0;
-      const effectiveInterest = hasExcess ? 0 : roundedInterest;
+      // El interés solo se condona cuando el pago liquida toda la deuda. Un
+      // exceso pequeño sobre una cuota no debe eliminar el interés del pago.
+      const effectiveInterest = result.closesDebt ? 0 : roundedInterest;
       const effectivePrincipal = Number(
         (roundedPayment - effectiveInterest).toFixed(2),
       );
@@ -692,7 +759,7 @@ export class CreditPaidService implements OnModuleInit {
       }
 
       if (!liquidationActive) {
-        if (result.balanceInFavorValue !== 0 && resutAccount[0]?.id) {
+        if (result.balanceInFavorValue > 0.000001 && resutAccount[0]?.id) {
           const payloadMovementOverpayment = {
             associateAccountId: resutAccount[0].id,
             movementType:
@@ -726,8 +793,19 @@ export class CreditPaidService implements OnModuleInit {
           const fullname = resutAccount[0]?.associateFullname ?? 'ASOCIADO';
 
           const roundedTotal = Number(result.paymentAmountBase.toFixed(2));
+          const foreignExchangeGain = Number(
+            Math.max(
+              0,
+              Math.min(
+                result.foreignExchangeGain,
+                roundedTotal - effectiveInterestBs,
+              ),
+            ).toFixed(2),
+          );
           const accountingPrincipal = Number(
-            (roundedTotal - effectiveInterestBs).toFixed(2),
+            (roundedTotal - effectiveInterestBs - foreignExchangeGain).toFixed(
+              2,
+            ),
           );
 
           const accountingPayload = {
@@ -748,11 +826,19 @@ export class CreditPaidService implements OnModuleInit {
                   CREDIT_PAYMENT: accountingPrincipal,
                   LOAN_INTEREST_INCOME: effectiveInterestBs,
                   BANK_ACCOUNT: roundedTotal,
+                  ...(foreignExchangeGain > 0
+                    ? { FOREIGN_EXCHANGE_GAINS: foreignExchangeGain }
+                    : {}),
                 },
                 descriptions: {
                   CREDIT_PAYMENT: `CUOTA CREDITO DEL ${dateStr}`,
                   LOAN_INTEREST_INCOME: `INTERES CREDITO DEL ${dateStr}`,
                   BANK_ACCOUNT: `PAGO CREDITO DEL ${dateStr}`,
+                  ...(foreignExchangeGain > 0
+                    ? {
+                        FOREIGN_EXCHANGE_GAINS: `DIFERENCIA CAMBIARIA PAGO CREDITO DEL ${dateStr}`,
+                      }
+                    : {}),
                 },
               },
             ],
@@ -760,6 +846,11 @@ export class CreditPaidService implements OnModuleInit {
               CREDIT_PAYMENT: `CUOTA CREDITO DEL ${dateStr}`,
               LOAN_INTEREST_INCOME: `INTERES CREDITO DEL ${dateStr}`,
               BANK_ACCOUNT: `PAGO CREDITO DEL ${dateStr}`,
+              ...(foreignExchangeGain > 0
+                ? {
+                    FOREIGN_EXCHANGE_GAINS: `DIFERENCIA CAMBIARIA PAGO CREDITO DEL ${dateStr}`,
+                  }
+                : {}),
             },
           };
 

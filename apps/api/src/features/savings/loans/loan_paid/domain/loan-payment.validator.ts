@@ -147,6 +147,7 @@ export class LoanPaymentValidator {
     amount: number,
     db?: NodePgDatabase<typeof schema>,
     pendingBalanceBase?: number,
+    preserveRemainderAsExcess = false,
   ): Promise<InstallmentResult> {
     const conn = db || this.db;
     const pendingInstallments =
@@ -256,6 +257,7 @@ export class LoanPaymentValidator {
     let partialInstallment: PartialInstallment | undefined;
 
     let remainingPaymentAmount = amount;
+    let coveredAnyInstallment = false;
 
     for (const installment of pendingInstallments) {
       const installmentTotal = Number(installment.totalInstallmentAmount);
@@ -274,6 +276,7 @@ export class LoanPaymentValidator {
         remainingPaymentAmount >= dueAmountExact - EPSILON_COMPARISON ||
         diffBetweenPaymentAndDue <= ROUNDING_ACCEPTANCE_TOLERANCE
       ) {
+        coveredAnyInstallment = true;
         const totalInst = Number(installment.totalInstallmentAmount);
         const princInst = Number(installment.principalAmount);
         const intInst = Number(installment.interestAmount);
@@ -297,6 +300,7 @@ export class LoanPaymentValidator {
         );
 
         if (
+          !preserveRemainderAsExcess &&
           remainingPaymentAmount > EPSILON_COMPARISON &&
           remainingPaymentAmount <= ROUNDING_ACCEPTANCE_TOLERANCE
         ) {
@@ -304,6 +308,13 @@ export class LoanPaymentValidator {
           break;
         }
       } else {
+        // En divisa, cualquier sobrante después de cubrir cuotas completas se
+        // conserva como cobro en exceso en lugar de aplicarlo a la siguiente
+        // cuota como abono parcial.
+        if (preserveRemainderAsExcess && coveredAnyInstallment) {
+          break;
+        }
+
         const princInst = Number(installment.principalAmount);
         const intInst = Number(installment.interestAmount);
         const alreadyPaid = Number(installment.paidAmount || 0);
@@ -336,15 +347,20 @@ export class LoanPaymentValidator {
       }
 
       if (remainingPaymentAmount <= EPSILON_COMPARISON) {
-        remainingPaymentAmount = 0;
+        if (!preserveRemainderAsExcess || remainingPaymentAmount <= 0) {
+          remainingPaymentAmount = 0;
+        }
         break;
       }
     }
 
     if (
+      !preserveRemainderAsExcess &&
       remainingPaymentAmount < EPSILON_COMPARISON &&
       remainingPaymentAmount > -EPSILON_COMPARISON
     ) {
+      remainingPaymentAmount = 0;
+    } else if (preserveRemainderAsExcess && remainingPaymentAmount < 0) {
       remainingPaymentAmount = 0;
     }
 

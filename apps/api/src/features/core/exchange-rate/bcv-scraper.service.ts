@@ -304,13 +304,26 @@ export class BcvScraperService implements OnModuleInit {
   }
 
   private parseFechaValor($: cheerio.CheerioAPI): Date {
+    // El BCV publica la fecha también en el atributo content del span dc:date.
+    // Se usa como respaldo para no depender del texto visible ni de tildes.
+    const isoTimestamp = $('[property="dc:date"]').first().attr('content');
+    if (isoTimestamp) {
+      const isoMatch = /^(\d{4})-(\d{2})-(\d{2})/.exec(isoTimestamp);
+      if (isoMatch) {
+        const [, year, month, day] = isoMatch;
+        return new Date(Number(year), Number(month) - 1, Number(day));
+      }
+    }
+
     const bodyText = $('body').text().replace(/\s+/g, ' ');
+    // El día de la semana puede llevar tilde (Miércoles, Sábado). Por eso no se
+    // usa \w+, que en JavaScript no reconoce caracteres acentuados.
     const match = bodyText.match(
-      /Fecha Valor:\s*(\w+),\s*(\d{1,2})\s+(\w+)\s+(\d{4})/i,
+      /Fecha Valor:\s*[^,]+,\s*(\d{1,2})\s+([^\s]+)\s+(\d{4})/i,
     );
     if (!match) throw new Error('Fecha Valor not found in BCV HTML');
 
-    const [, , dayStr, monthStr, yearStr] = match;
+    const [, dayStr, monthStr, yearStr] = match;
     const month = SPANISH_MONTHS[monthStr.toLowerCase()];
     if (month === undefined) {
       throw new Error(`Unknown Spanish month: "${monthStr}"`);

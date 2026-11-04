@@ -1,40 +1,76 @@
 import { useToast } from '@repo/shadcn/hooks/use-toast';
 
-type ToastInput = string | { title: string; description: string };
+type ToastInput =
+  | string
+  | {
+      title: string;
+      description?: string;
+      duration?: number;
+    };
+
+function normalizeInput(input: ToastInput, fallbackTitle: string) {
+  if (typeof input === 'string') {
+    return {
+      title: fallbackTitle,
+      description: input,
+      duration: undefined,
+    };
+  }
+
+  return {
+    title: input.title || fallbackTitle,
+    description: input.description,
+    duration: input.duration,
+  };
+}
 
 export function useToastSystem() {
   const { toast } = useToast();
 
   const success = (input: ToastInput) => {
-    if (typeof input === 'string') {
-      toast({ title: 'Exito', description: input });
-    } else {
-      toast({ title: input.title, description: input.description });
-    }
+    const { title, description, duration } = normalizeInput(input, 'Éxito');
+    toast({
+      variant: 'success',
+      title,
+      description,
+      duration,
+    });
   };
 
   const error = (input: ToastInput) => {
-    if (typeof input === 'string') {
-      toast({ variant: 'destructive', title: 'Error', description: input });
-    } else {
-      toast({ variant: 'destructive', title: input.title, description: input.description });
-    }
+    const { title, description, duration } = normalizeInput(input, 'Error');
+    toast({
+      variant: 'destructive',
+      title,
+      description,
+      duration,
+    });
   };
 
   const info = (input: ToastInput) => {
-    if (typeof input === 'string') {
-      toast({ title: 'Informacion', description: input });
-    } else {
-      toast({ title: input.title, description: input.description });
-    }
+    const { title, description, duration } = normalizeInput(
+      input,
+      'Información',
+    );
+    toast({
+      variant: 'info',
+      title,
+      description,
+      duration,
+    });
   };
 
   const warning = (input: ToastInput) => {
-    if (typeof input === 'string') {
-      toast({ variant: 'destructive', title: 'Advertencia', description: input });
-    } else {
-      toast({ variant: 'destructive', title: input.title, description: input.description });
-    }
+    const { title, description, duration } = normalizeInput(
+      input,
+      'Advertencia',
+    );
+    toast({
+      variant: 'warning',
+      title,
+      description,
+      duration,
+    });
   };
 
   return { toast, success, error, info, warning };

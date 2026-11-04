@@ -40,6 +40,26 @@ describe('BcvScraperService', () => {
       expect(fecha.getMonth()).toBe(8); // septiembre
       expect(fecha.getDate()).toBe(8);
     });
+
+    it('parsea días de la semana con tilde', () => {
+      const html = `<html><body>USD 893,21730000 EUR 947,29802151 Fecha Valor: Miércoles, 04 Noviembre 2026</body></html>`;
+      const $ = cheerio.load(html);
+      const fecha = service.parseFechaValor($);
+      expect(fecha.getFullYear()).toBe(2026);
+      expect(fecha.getMonth()).toBe(10); // noviembre
+      expect(fecha.getDate()).toBe(4);
+    });
+
+    it('usa el atributo dc:date del BCV cuando está disponible', () => {
+      const html = `<html><body>
+        <span property="dc:date" content="2026-11-04T00:00:00-04:00">Miércoles, 04 Noviembre 2026</span>
+      </body></html>`;
+      const $ = cheerio.load(html);
+      const fecha = service.parseFechaValor($);
+      expect(fecha.getFullYear()).toBe(2026);
+      expect(fecha.getMonth()).toBe(10);
+      expect(fecha.getDate()).toBe(4);
+    });
   });
 
   describe('determineDatesToSave', () => {

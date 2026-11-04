@@ -169,6 +169,7 @@ export const roleOptionsByCategory: Record<Category, RoleDef[]> = {
     { value: 'CASH_ACCOUNT', label: 'Caja Principal' },
     { value: 'SERVICE_FEE_INCOME', label: 'Ingresos por Comisiones' },
     { value: 'LOAN_INTEREST_INCOME', label: 'Ingresos por Intereses' },
+    { value: 'FOREIGN_EXCHANGE_GAINS', label: 'Ingresos por Diferencia de Cambios' },
     { value: 'LOAN_PAYMENT', label: 'Pago / Abono a Préstamo' },
     { value: 'CREDIT_PAYMENT', label: 'Pago / Abono a Crédito' },
     { value: 'LOAN_WITHHOLDING', label: 'Retención de Préstamo' },

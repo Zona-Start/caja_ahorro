@@ -1,6 +1,12 @@
+import { calculateForeignExchangeGain } from '@/common/utils/foreign-exchange-gain';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
-import { loans } from '@/database/schema';
+import {
+  loanAmortizationSchedule,
+  loanPayments,
+  loans,
+} from '@/database/schema';
+import { ExchangeRateService } from '@/features/core/exchange-rate/exchange-rate.service';
 import { OutboxWriterService } from '@/shared/outbox';
 import {
   AssociateMovementTypeEnum,
@@ -8,15 +14,13 @@ import {
   CurrencyCodeEnum,
 } from '@/types/enum';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, eq } from 'drizzle-orm';
+import { and, asc, eq, ne } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { v4 as uuidv4 } from 'uuid';
-import { ExchangeRateService } from '@/features/core/exchange-rate/exchange-rate.service';
 import { LoanPaymentAccounting } from '../domain/loan-payment.accounting';
 import { LoanPaymentAudit } from '../domain/loan-payment.audit';
 import { LoanPaymentBank } from '../domain/loan-payment.bank';
 import { LoanPaymentProcessor } from '../domain/loan-payment.processor';
-import { EPSILON_COMPARISON } from '../domain/loan-payment.types';
 import { LoanPaymentValidator } from '../domain/loan-payment.validator';
 import { CreateLoanPaidDto } from '../dto/loan-paid.schema';
 import { LOAN_PAYMENT_EVENTS } from '../events/loan-payment.events';
@@ -75,9 +79,9 @@ export class CreatePaymentUseCase {
         Number(lockedLoan.exchangeRate ?? 0) > 0 &&
         !!lockedLoan.currencyCode &&
         lockedLoan.currencyCode !== 'VES';
-      const loanCurrency = (loanHasFx
-        ? lockedLoan.currencyCode
-        : 'VES') as CurrencyCodeEnum;
+      const loanCurrency = (
+        loanHasFx ? lockedLoan.currencyCode : 'VES'
+      ) as CurrencyCodeEnum;
       let paymentRate =
         loanCurrency === CurrencyCodeEnum.VES
           ? 1
@@ -105,6 +109,7 @@ export class CreatePaymentUseCase {
           amount,
           tx,
           pendingBalanceBase,
+          loanHasFx,
         );
 
       const appliedAmountExact = this.processor.getAppliedAmount(
@@ -201,10 +206,10 @@ export class CreatePaymentUseCase {
       const roundedPayment = Number(appliedAmountExact.toFixed(2));
       const roundedInterest = Number(totalInterestPaid.toFixed(2));
 
-      // Pago en exceso: se condona el interés de todas las cuotas cubiertas y
-      // todo el dinero va a la cuenta del préstamo (capital).
-      const hasExcess = balanceInFavorValue > 0;
-      const effectiveInterest = hasExcess ? 0 : roundedInterest;
+      // El interés solo se condona cuando el pago liquida toda la deuda. Un
+      // pequeño exceso sobre una cuota no debe eliminar el interés del pago.
+      const closesDebt = newBalancePending <= 0;
+      const effectiveInterest = closesDebt ? 0 : roundedInterest;
       const effectivePrincipal = Number(
         (roundedPayment - effectiveInterest).toFixed(2),
       );
@@ -212,6 +217,55 @@ export class CreatePaymentUseCase {
         2,
       );
       const effectiveInterestBs = +(effectiveInterest * paymentRate).toFixed(2);
+
+      let foreignExchangeGain = 0;
+      const isForeignLoan =
+        !!loan.currencyCode &&
+        loan.currencyCode !== 'VES' &&
+        Number(loan.exchangeRate ?? 0) > 0;
+      if (!liquidationActive && isForeignLoan && newBalancePending <= 0) {
+        // Se reconstruye el saldo contable en Bs usando los pagos anteriores:
+        // la diferencia cambiaria acumulada se reconoce al liquidar la deuda.
+        const priorPayments = await tx
+          .select({
+            balancePending: loanPayments.balancePending,
+            exchangeRate: loanPayments.exchangeRate,
+          })
+          .from(loanPayments)
+          .where(
+            and(
+              eq(loanPayments.loanId, loanId),
+              eq(loanPayments.tenantId, tenantId),
+              eq(loanPayments.status, 'DONE'),
+              ne(loanPayments.id, insertedPayment.id),
+            ),
+          )
+          .orderBy(asc(loanPayments.createdAt));
+
+        let originalPrincipalForeign = pendingBalanceBase;
+        if (priorPayments.length > 0) {
+          const scheduleRows = await tx
+            .select({
+              principalAmount: loanAmortizationSchedule.principalAmount,
+            })
+            .from(loanAmortizationSchedule)
+            .where(eq(loanAmortizationSchedule.loanId, loanId));
+          originalPrincipalForeign = scheduleRows.reduce(
+            (sum, row) => sum + Number(row.principalAmount ?? 0),
+            0,
+          );
+        }
+
+        foreignExchangeGain = calculateForeignExchangeGain({
+          currencyCode: loan.currencyCode,
+          paymentRate,
+          creationRate: Number(loan.exchangeRate ?? 0),
+          pendingPrincipalForeign: pendingBalanceBase,
+          originalPrincipalForeign,
+          priorPayments,
+          closesDebt: true,
+        });
+      }
 
       if (!liquidationActive) {
         await this.accounting.generatePaymentEntry(
@@ -222,6 +276,7 @@ export class CreatePaymentUseCase {
           effectiveInterestBs,
           paymentDate ? new Date(paymentDate) : new Date(),
           tx,
+          foreignExchangeGain,
         );
 
         this.audit.logPaymentCreated(
@@ -314,7 +369,7 @@ export class CreatePaymentUseCase {
       }
 
       if (!liquidationActive) {
-        if (balanceInFavorValue > EPSILON_COMPARISON && acc?.id) {
+        if (balanceInFavorValue > 0.000001 && acc?.id) {
           await this.processor.createAssociateMovement(
             userId,
             {

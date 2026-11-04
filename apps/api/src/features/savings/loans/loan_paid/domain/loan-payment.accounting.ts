@@ -22,6 +22,7 @@ export class LoanPaymentAccounting {
     interestAmount: number,
     paymentDate: Date,
     tx: NodePgDatabase<typeof schema>,
+    foreignExchangeGain = 0,
   ): Promise<void> {
     const dateStr = format(paymentDate, 'dd/MM/yyyy');
     const fullname = loanData.associateFullname ?? 'ASOCIADO';
@@ -29,8 +30,14 @@ export class LoanPaymentAccounting {
 
     const roundedPayment = Number(paymentAmount.toFixed(2));
     const roundedInterest = Number(interestAmount.toFixed(2));
+    const roundedGain = Number(
+      Math.max(
+        0,
+        Math.min(foreignExchangeGain, roundedPayment - roundedInterest),
+      ).toFixed(2),
+    );
     const loanPaymentAmount = Number(
-      (roundedPayment - roundedInterest).toFixed(2),
+      (roundedPayment - roundedInterest - roundedGain).toFixed(2),
     );
 
     const amounts: Record<string, number> = {
@@ -40,7 +47,7 @@ export class LoanPaymentAccounting {
     };
 
     this.logger.log(
-      `[generatePaymentEntry] Asiento a generar: payment=${roundedPayment} interest=${roundedInterest} loanPayment=${loanPaymentAmount} ref=${referenceValue}`,
+      `[generatePaymentEntry] Asiento a generar: payment=${roundedPayment} interest=${roundedInterest} loanPayment=${loanPaymentAmount} fxGain=${roundedGain} ref=${referenceValue}`,
     );
 
     const descriptions: Record<string, string> = {
@@ -48,6 +55,11 @@ export class LoanPaymentAccounting {
       LOAN_INTEREST_INCOME: `INTERESES PRESTAMO DEL ${dateStr}`,
       BANK_ACCOUNT: `PAGO PRESTAMO DEL ${dateStr}`,
     };
+
+    if (roundedGain > 0) {
+      amounts.FOREIGN_EXCHANGE_GAINS = roundedGain;
+      descriptions.FOREIGN_EXCHANGE_GAINS = `DIFERENCIA CAMBIARIA PAGO PRESTAMO DEL ${dateStr}`;
+    }
 
     try {
       const entry = await this.accountingEntriesService.createAutomaticEntry(
