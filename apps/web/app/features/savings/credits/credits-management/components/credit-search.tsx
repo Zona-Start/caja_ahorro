@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Search, User, X, Wallet, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
 import { Badge } from '@repo/shadcn/badge';
 import { Button } from '@repo/shadcn/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@repo/shadcn/card';
 import { Input } from '@repo/shadcn/input';
+import { useToastSystem } from '@/hooks/use-toast-system';
 import { useSearchAssociate } from '../hooks/use-credits-management-query';
 import { type SearchAssociateResult } from '../schemas/credits-management-api-response';
 
@@ -22,16 +23,74 @@ export function CreditSearch({
   onSelectAssociate,
   selectedAssociate,
 }: CreditSearchProps) {
+  const toast = useToastSystem();
   const [cedula, setCedula] = useState('');
   const [shouldFetch, setShouldFetch] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
-  const { data, isLoading, isError } = useSearchAssociate(
+  const { data, error, isLoading, isError } = useSearchAssociate(
     shouldFetch ? cedula : '',
     { enabled: shouldFetch && cedula.length >= 7 },
   );
 
+  useEffect(() => {
+    if (data) {
+      onSelectAssociate(data);
+    }
+  }, [data, onSelectAssociate]);
+
+  useEffect(() => {
+    if (!isError || !shouldFetch) return;
+
+    setShouldFetch(false);
+    onSelectAssociate(null);
+
+    const err = error as {
+      message?: string;
+      response?: {
+        status?: number;
+        data?: { message?: string | string[] };
+      };
+    };
+    const backendMessage = Array.isArray(err?.response?.data?.message)
+      ? err.response?.data?.message.join(' ')
+      : err?.response?.data?.message;
+    const message = backendMessage || err?.message || '';
+    const normalized = message.toLowerCase();
+    const status = err?.response?.status;
+
+    if (normalized.includes('liquidado') || normalized.includes('retired')) {
+      const detail =
+        'El asociado está liquidado y no puede crear créditos.';
+      setSearchError(detail);
+      toast.info({ title: 'Asociado liquidado', description: detail });
+    } else if (
+      normalized.includes('inactivo') ||
+      normalized.includes('inactive')
+    ) {
+      const detail = 'El asociado está inactivo y no puede crear créditos.';
+      setSearchError(detail);
+      toast.warning({ title: 'Asociado inactivo', description: detail });
+    } else if (
+      status === 404 ||
+      normalized.includes('not found') ||
+      normalized.includes('no encontrado')
+    ) {
+      const detail = `No se encontró un asociado con la cédula ${cedula}.`;
+      setSearchError('Asociado no encontrado.');
+      toast.info({ title: 'Asociado no encontrado', description: detail });
+    } else {
+      setSearchError('Error realizando la búsqueda.');
+      toast.error({
+        title: 'Error realizando la búsqueda',
+        description: 'Contacte con el administrador del sistema.',
+      });
+    }
+  }, [isError, error, cedula, onSelectAssociate, shouldFetch, toast]);
+
   const handleSearch = () => {
     if (cedula.length >= 7) {
+      setSearchError(null);
       setShouldFetch(true);
     }
   };
@@ -39,6 +98,7 @@ export function CreditSearch({
   const handleClear = () => {
     setCedula('');
     setShouldFetch(false);
+    setSearchError(null);
     onSelectAssociate(null);
   };
 
@@ -92,10 +152,8 @@ export function CreditSearch({
           <p className="text-sm text-muted-foreground">Buscando asociado...</p>
         )}
 
-        {isError && !data && (
-          <p className="text-sm text-destructive">
-            Asociado no encontrado o inactivo
-          </p>
+        {searchError && !selectedAssociate && (
+          <p className="text-sm text-destructive">{searchError}</p>
         )}
 
         {selectedAssociate && (

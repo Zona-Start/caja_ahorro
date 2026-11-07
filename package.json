@@ -15,6 +15,7 @@
     "db:generate": "pnpm --filter api db:generate",
     "db:migrate": "pnpm --filter api db:migrate",
     "db:seed": "pnpm --filter api db:seed",
+    "db:seed:special-operations": "pnpm --filter api db:seed:special-operations",
     "dev": "turbo dev",
     "dev:api": "pnpm dev --filter=api",
     "dev:web": "pnpm dev --filter=web",

@@ -86,6 +86,9 @@ export {
   paymentBatches,
   reimbursementDetails,
   reimbursements,
+  specialOperationAccountConfigs,
+  specialOperationItems,
+  specialOperations,
   withdrawalTypes,
   withdrawalsAssociates,
 } from './savings';

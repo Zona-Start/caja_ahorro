@@ -41,7 +41,7 @@ export function PaymentBatchTableAction({
       </div>
       <div className="flex items-center gap-2">
         <Button size="sm" variant="outline" onClick={onSpecialCreate}>
-          <Sparkles className="mr-2 h-4 w-4" /> Pagos Especiales
+          <Sparkles className="mr-2 h-4 w-4" /> Pagos Especiales (terceros)
         </Button>
         <Button size="sm" onClick={openCreateModal}>
           <Plus className="mr-2 h-4 w-4" /> Nuevo Lote

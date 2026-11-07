@@ -5,7 +5,11 @@ import {
   associateHaberesBalance,
   associates,
   creditOutstandingBalance,
+  credits,
+  creditsTypes,
   loanOutstandingBalance,
+  loans,
+  loanTypes,
 } from '@/database/schema';
 import {
   Inject,
@@ -29,8 +33,12 @@ export class SavingsLiquidationService {
 
   async calculateAssociateLiquidation(
     identificationNumber: string,
+    tenantId?: string,
   ): Promise<LiquidationResponseDto> {
-    const rawResult = await this.fetchRawLiquidationData(identificationNumber);
+    const rawResult = await this.fetchRawLiquidationData(
+      identificationNumber,
+      tenantId,
+    );
     if (!rawResult) {
       throw new NotFoundException(
         `No se encontró asociado con cédula ${identificationNumber} activo y cuenta en VES`,
@@ -49,7 +57,91 @@ export class SavingsLiquidationService {
     }
   }
 
-  private async fetchRawLiquidationData(cedula: string): Promise<any | null> {
+  /**
+   * Desglose del capital pendiente de préstamos y créditos por tipo.
+   * Se usa para construir los roles contables por tipo en Operaciones Especiales.
+   */
+  async getAssociateDebtBreakdown(
+    associateId: string,
+    tenantId: string,
+    currencyCode = 'VES',
+  ): Promise<{
+    loans: Array<{ typeName: string; amount: number }>;
+    credits: Array<{ typeName: string; amount: number }>;
+  }> {
+    const loanRows = await this.db
+      .select({
+        typeName: loanTypes.name,
+        amount: loanOutstandingBalance.capitalPendiente,
+      })
+      .from(loanOutstandingBalance)
+      .leftJoin(loans, eq(loans.id, loanOutstandingBalance.loanId))
+      .leftJoin(loanTypes, eq(loanTypes.id, loans.loanTypeId))
+      .where(
+        and(
+          eq(loanOutstandingBalance.associateId, associateId),
+          eq(loanOutstandingBalance.tenantId, tenantId),
+          eq(loanOutstandingBalance.currencyCode, currencyCode),
+        ),
+      );
+
+    const creditRows = await this.db
+      .select({
+        typeName: creditsTypes.name,
+        amount: creditOutstandingBalance.capitalPendiente,
+      })
+      .from(creditOutstandingBalance)
+      .leftJoin(
+        credits,
+        eq(credits.id, creditOutstandingBalance.creditId),
+      )
+      .leftJoin(
+        creditsTypes,
+        eq(creditsTypes.id, credits.creditTypeId),
+      )
+      .where(
+        and(
+          eq(creditOutstandingBalance.associateId, associateId),
+          eq(creditOutstandingBalance.tenantId, tenantId),
+          eq(creditOutstandingBalance.currencyCode, currencyCode),
+        ),
+      );
+
+    const groupByType = (
+      rows: Array<{ typeName: string | null; amount: string | null }>,
+      fallback: string,
+    ) => {
+      const grouped = new Map<string, number>();
+      for (const row of rows) {
+        const typeName = row.typeName?.trim() || fallback;
+        const amount = Number(row.amount ?? 0);
+        if (!amount) continue;
+        grouped.set(typeName, (grouped.get(typeName) ?? 0) + amount);
+      }
+      return Array.from(grouped.entries()).map(([typeName, amount]) => ({
+        typeName,
+        amount,
+      }));
+    };
+
+    return {
+      loans: groupByType(loanRows, 'PRESTAMO'),
+      credits: groupByType(creditRows, 'CREDITO'),
+    };
+  }
+
+  private async fetchRawLiquidationData(
+    cedula: string,
+    tenantId?: string,
+  ): Promise<any | null> {
+    const associateConditions = [
+      eq(associates.cedula, cedula),
+      inArray(associates.status, ['ACTIVE', 'PENDING']),
+    ];
+    if (tenantId) {
+      associateConditions.push(eq(associates.tenantId, tenantId));
+    }
+
     const [associateData] = await this.db
       .select({
         associate_id: associates.id,
@@ -70,12 +162,7 @@ export class SavingsLiquidationService {
           eq(associateAccounts.currencyCode, 'VES'),
         ),
       )
-      .where(
-        and(
-          eq(associates.cedula, cedula),
-          inArray(associates.status, ['ACTIVE', 'PENDING']),
-        ),
-      )
+      .where(and(...associateConditions))
       .limit(1);
 
     if (!associateData) return null;

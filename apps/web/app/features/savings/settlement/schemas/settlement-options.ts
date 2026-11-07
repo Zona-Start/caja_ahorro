@@ -1,6 +1,6 @@
 export const SETTLEMENT_TYPE_LABELS = {
   COMPLETE: 'Completa',
-  SPECIAL: 'Especial',
+  SPECIAL: 'Liquidación Especial (pago a tercero)',
 } as const;
 
 export type SettlementType = keyof typeof SETTLEMENT_TYPE_LABELS;

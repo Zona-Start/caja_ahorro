@@ -50,14 +50,49 @@ export function CreditPaidSearch({
 
       if (isError) {
         onSelectAssociate(null);
-        const errorMessage =
-          (error as { message?: string })?.message || 'Error desconocido';
-        const status = (error as { response?: { status?: number } })?.response?.status;
 
-        if (errorMessage.includes('not found') || status === 404) {
+        const err = error as {
+          message?: string;
+          response?: {
+            status?: number;
+            data?: { message?: string | string[] };
+          };
+        };
+        const backendMessage = Array.isArray(err?.response?.data?.message)
+          ? err.response?.data?.message.join(' ')
+          : err?.response?.data?.message;
+        const errorMessage =
+          backendMessage || err?.message || 'Error desconocido';
+        const normalized = errorMessage.toLowerCase();
+        const status = err?.response?.status;
+
+        if (
+          normalized.includes('liquidado') ||
+          normalized.includes('retired')
+        ) {
           toast.info({
-            title: 'Asociado no encontrado',
-            description: `No se encontró un asociado con la cédula ${submittedSearchTerm}.`,
+            title: 'Asociado liquidado',
+            description:
+              'El asociado está liquidado y no puede registrar pagos de créditos.',
+          });
+        } else if (
+          normalized.includes('inactivo') ||
+          normalized.includes('inactive')
+        ) {
+          toast.warning({
+            title: 'Asociado inactivo',
+            description:
+              'El asociado está inactivo y no puede registrar pagos de créditos.',
+          });
+        } else if (
+          status === 404 ||
+          normalized.includes('no se encuentra registrado') ||
+          normalized.includes('not found') ||
+          normalized.includes('no encontrado')
+        ) {
+          toast.info({
+            title: 'Asociado no se encuentra registrado',
+            description: `No existe un asociado con la cédula ${submittedSearchTerm}.`,
           });
         } else {
           toast.error({

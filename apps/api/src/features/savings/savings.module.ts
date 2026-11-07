@@ -8,6 +8,7 @@ import { LoansFeaturesModule } from './loans/loans.module';
 import { AssociatesFeaturesModule } from './parnerts/associatesFeatures.module';
 import { ReimbursementModule } from './reimbursement/reimbursement.module';
 import { SettlementAssociateModule } from './settlement/settlement-associate.module';
+import { SpecialOperationsModule } from './special-operations/special-operations.module';
 import { WithdrawalFeaturesModule } from './withdrawalls/withdrawal.module';
 
 @Module({
@@ -17,6 +18,7 @@ import { WithdrawalFeaturesModule } from './withdrawalls/withdrawal.module';
     WithdrawalFeaturesModule,
     AssociatesFeaturesModule,
     SettlementAssociateModule,
+    SpecialOperationsModule,
     ReimbursementModule,
     IndividualLoadModule,
     ContributionBatchesModule,

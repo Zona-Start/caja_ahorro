@@ -77,7 +77,10 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
               </DropdownMenuItem>
             )}
 
-            {data.status === 'PROCESSED' && hasPermission("savings:liquidations", "disburse") && (
+            {data.status === 'PROCESSED' &&
+              data.originType !== 'SPECIAL_OPERATION' &&
+              data.settlementType !== 'SPECIAL' &&
+              hasPermission("savings:liquidations", "disburse") && (
               <DropdownMenuItem onClick={handleDisburse}>
                 <Banknote className="mr-2 h-4 w-4" />
                 Desembolsar

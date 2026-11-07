@@ -284,6 +284,18 @@ export class CreditManagementService {
       );
     }
 
+    if (assoc.status === 'INACTIVE') {
+      throw new NotFoundException(
+        `El asociado con cédula ${cedula} está inactivo`,
+      );
+    }
+
+    if (assoc.status === 'RETIRED') {
+      throw new NotFoundException(
+        `El asociado con cédula ${cedula} está liquidado`,
+      );
+    }
+
     const [account] = await this.db
       .select({
         id: associateAccounts.id,
@@ -507,6 +519,7 @@ export class CreditManagementService {
       .select({
         isPayrollCredit: associates.isPayrollCredit,
         baseSalary: associates.baseSalary,
+        status: associates.status,
       })
       .from(associates)
       .where(
@@ -515,6 +528,18 @@ export class CreditManagementService {
 
     if (!assoc) {
       throw new NotFoundException('Asociado no encontrado');
+    }
+
+    if (assoc.status === 'RETIRED') {
+      throw new BadRequestException(
+        'El asociado está liquidado y no puede solicitar créditos.',
+      );
+    }
+
+    if (assoc.status === 'INACTIVE') {
+      throw new BadRequestException(
+        'El asociado está inactivo y no puede solicitar créditos.',
+      );
     }
 
     // Moneda del crédito y tasa del día (BCV, editable).

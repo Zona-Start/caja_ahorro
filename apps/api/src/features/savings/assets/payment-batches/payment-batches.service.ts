@@ -142,6 +142,7 @@ export class PaymentBatchesService {
             const rec = await tx
               .select({
                 status: schema.liquidationsAssociates.status,
+                originType: schema.liquidationsAssociates.originType,
                 netLiquidationAmount:
                   schema.liquidationsAssociates.netLiquidationAmount,
                 settlementType: schema.liquidationsAssociates.settlementType,
@@ -175,9 +176,13 @@ export class PaymentBatchesService {
                 ),
               );
 
-            if (rec.length === 0 || rec[0].status !== 'PROCESSED')
+            if (
+              rec.length === 0 ||
+              rec[0].status !== 'PROCESSED' ||
+              rec[0].originType === 'SPECIAL_OPERATION'
+            )
               throw new BadRequestException(
-                `Liquidación ${it.sourceId} no procesada`,
+                `Liquidación ${it.sourceId} no disponible para lote de pago`,
               );
 
             const isSpecial = rec[0].settlementType === 'SPECIAL';

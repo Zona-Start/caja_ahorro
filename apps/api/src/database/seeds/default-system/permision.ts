@@ -362,6 +362,35 @@ export const DEFAULT_PERMISSIONS = [
     scope: 'tenant',
   },
   {
+    resource: 'savings:special-operations',
+    action: 'read',
+    name: 'Consultar Operaciones Especiales',
+    description: 'Ver el historial y el detalle de operaciones especiales.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'savings:special-operations',
+    action: 'create',
+    name: 'Crear Operaciones Especiales',
+    description: 'Cargar archivos y preparar operaciones especiales.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'savings:special-operations',
+    action: 'config',
+    name: 'Configurar Cuentas de Operaciones Especiales',
+    description:
+      'Definir la regla contable de una operación especial en el wizard.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'savings:special-operations',
+    action: 'execute',
+    name: 'Ejecutar Operaciones Especiales',
+    description: 'Confirmar y ejecutar una operación especial.',
+    scope: 'tenant',
+  },
+  {
     resource: 'savings:reimbursement',
     action: 'create',
     name: 'Registrar Reintegro',

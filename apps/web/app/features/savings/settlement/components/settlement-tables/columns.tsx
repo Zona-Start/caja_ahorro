@@ -27,10 +27,18 @@ export const columns: ColumnDef<SettlementPaymentApi>[] = [
     header: 'Tipo',
     cell: ({ row }) => {
       const type = row.original.settlementType ?? 'COMPLETE';
+      const isSpecialOperation =
+        row.original.originType === 'SPECIAL_OPERATION';
+
       return (
-        <Badge variant={type === 'SPECIAL' ? 'warning' : 'outline'}>
-          {SETTLEMENT_TYPE_LABELS[type] ?? type}
-        </Badge>
+        <div className="flex flex-wrap items-center gap-1">
+          <Badge variant={type === 'SPECIAL' ? 'warning' : 'outline'}>
+            {SETTLEMENT_TYPE_LABELS[type] ?? type}
+          </Badge>
+          {isSpecialOperation && (
+            <Badge variant="secondary">Operación Especial</Badge>
+          )}
+        </div>
       );
     },
   },

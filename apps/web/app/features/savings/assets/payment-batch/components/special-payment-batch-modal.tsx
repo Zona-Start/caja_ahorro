@@ -137,11 +137,11 @@ export function SpecialPaymentBatchModal({
       <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5" /> Pagos Especiales
+            <Sparkles className="h-5 w-5" /> Pagos Especiales (terceros)
           </DialogTitle>
           <DialogDescription>
-            Seleccione liquidaciones especiales, la cuenta origen y la cuenta
-            destino a la que el banco realizará el pago.
+            Seleccione Liquidaciones Especiales (pago a tercero), la cuenta
+            origen y la cuenta destino a la que el banco realizará el pago.
           </DialogDescription>
         </DialogHeader>
 
@@ -185,7 +185,7 @@ export function SpecialPaymentBatchModal({
           <div>
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-semibold">
-                Liquidaciones Especiales Aprobadas
+                Liquidaciones Especiales (pago a tercero) Aprobadas
               </span>
               <span className="text-xs text-muted-foreground">
                 {liquidations.length} registros

@@ -96,21 +96,28 @@ export function SettlementDetailsModal({ open, onOpenChange, data }: Props) {
                   {data.customReference || '—'}
                 </span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-3">
                 <span className="text-sm text-muted-foreground">
                   Tipo:
                 </span>
-                <Badge
-                  variant={
-                    (data.settlementType ?? 'COMPLETE') === 'SPECIAL'
-                      ? 'warning'
-                      : 'outline'
-                  }
-                >
-                  {SETTLEMENT_TYPE_LABELS[data.settlementType ?? 'COMPLETE'] ??
-                    data.settlementType ??
-                    'Completa'}
-                </Badge>
+                <div className="flex flex-wrap items-center justify-end gap-1">
+                  <Badge
+                    variant={
+                      (data.settlementType ?? 'COMPLETE') === 'SPECIAL'
+                        ? 'warning'
+                        : 'outline'
+                    }
+                  >
+                    {SETTLEMENT_TYPE_LABELS[
+                      data.settlementType ?? 'COMPLETE'
+                    ] ??
+                      data.settlementType ??
+                      'Completa'}
+                  </Badge>
+                  {data.originType === 'SPECIAL_OPERATION' && (
+                    <Badge variant="secondary">Operación Especial</Badge>
+                  )}
+                </div>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-muted-foreground">

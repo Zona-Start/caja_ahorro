@@ -3,7 +3,7 @@ import * as schema from '@/database/schema';
 import { AccountingRuleWithDetails } from '@/database/types/accounting';
 import { AuditHelper } from '@/features/audit/audit-event.service';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
+import { and, eq, ilike, ne, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { CreateAccountingRuleDto } from './dto/create-accounting-rule.dto';
 import { FilterAccountingRulesDto } from './dto/filter-accounting-rule.dto';
@@ -57,7 +57,14 @@ export class AccountingRulesService {
     const rules = await this.drizzle
       .select()
       .from(schema.accountingRules)
-      .where(eq(schema.accountingRules.tenantId, tenantId));
+      .where(
+        and(
+          eq(schema.accountingRules.tenantId, tenantId),
+          // La regla de Operaciones Especiales se define en su propio wizard
+          // y no debe aparecer en el mapa de integraciones existente.
+          ne(schema.accountingRules.category, 'SPECIAL_OPERATION'),
+        ),
+      );
 
     const results: AccountingRuleWithDetails[] = [];
     for (const r of rules) {
@@ -87,7 +94,9 @@ export class AccountingRulesService {
 
     const offset = (page - 1) * limit;
 
-    const searchConditions: SQL<unknown>[] = [];
+    const searchConditions: SQL<unknown>[] = [
+      ne(schema.accountingRules.category, 'SPECIAL_OPERATION'),
+    ];
 
     if (search) {
       searchConditions.push(

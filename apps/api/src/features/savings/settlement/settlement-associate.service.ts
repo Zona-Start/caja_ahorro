@@ -43,6 +43,7 @@ import {
   inArray,
   isNotNull,
   isNull,
+  ne,
   or,
   sql,
   sum,
@@ -102,6 +103,7 @@ export class SettlementAssociateService {
     const resultLiquidations =
       await this.savingsLiquidationService.calculateAssociateLiquidation(
         cedula,
+        tenantId,
       );
 
     return {
@@ -114,6 +116,10 @@ export class SettlementAssociateService {
     tenantId: string,
     userId: string,
     dto: CreateSettlementAssociateDto,
+    options?: {
+      originType?: string;
+      tx?: NodePgDatabase<typeof schema>;
+    },
   ) {
     const { associateId, notes, date, beneficiary, settlementType } = dto;
 
@@ -141,6 +147,8 @@ export class SettlementAssociateService {
       notes,
       beneficiary,
       settlementType,
+      options?.originType,
+      options?.tx,
     );
 
     return {
@@ -157,8 +165,10 @@ export class SettlementAssociateService {
     notes?: string,
     beneficiary?: CreateSettlementAssociateDto['beneficiary'],
     settlementType: 'COMPLETE' | 'SPECIAL' = 'COMPLETE',
+    originType?: string,
+    providedTx?: NodePgDatabase<typeof schema>,
   ) {
-    return this.db.transaction(async (tx) => {
+    const run = async (tx: NodePgDatabase<typeof schema>) => {
       if (associate.status !== 'ACTIVE' && associate.status !== 'PENDING') {
         throw new BadRequestException(
           `El asociado con cédula '${associate.cedula}' no está activo para ser liquidado (estado actual: ${associate.status}).`,
@@ -194,6 +204,7 @@ export class SettlementAssociateService {
       const liq =
         await this.savingsLiquidationService.calculateAssociateLiquidation(
           associate.cedula,
+          tenantId,
         );
 
       const [newLiquidationRequest] = await tx
@@ -214,6 +225,7 @@ export class SettlementAssociateService {
           netLiquidationAmount: String(liq.net_liquidation_amount),
           settlementType,
           status: 'REQUESTED',
+          originType: originType ?? null,
           notes: notes,
           beneficiary: beneficiary ?? null,
           createdById: userId,
@@ -246,7 +258,9 @@ export class SettlementAssociateService {
       );
 
       return newLiquidationRequest;
-    });
+    };
+
+    return providedTx ? run(providedTx) : this.db.transaction(run);
   }
 
   async downloadTemplate() {
@@ -636,14 +650,147 @@ export class SettlementAssociateService {
     return comercialType || null;
   }
 
+  /**
+   * Obtiene las líneas de retiro agrupadas por tipo de retiro.
+   * Se usa tanto al aprobar una liquidación como al previsualizar una
+   * operación especial, para que los roles contables coincidan.
+   */
+  async getWithdrawalAccountingLines(
+    tenantId: string,
+    associateAccountId: string,
+    tx?: NodePgDatabase<typeof schema>,
+  ): Promise<LiquidationWithdrawalLine[]> {
+    const db = tx ?? this.db;
+    const lines: LiquidationWithdrawalLine[] = [];
+
+    // 1. Retiros CON referencia -> el tipo sale directo de la tabla.
+    const referencedRows = await db
+      .select({
+        description: withdrawalTypes.description,
+        isHouseComercial: withdrawalTypes.isHouseComercial,
+        isInternalInventory: withdrawalTypes.isInternalInventory,
+        amount: sum(associateAccountMovements.amount),
+        movementType: associateAccountMovements.movementType,
+      })
+      .from(associateAccountMovements)
+      .innerJoin(
+        withdrawalsAssociates,
+        and(
+          eq(withdrawalsAssociates.tenantId, tenantId),
+          sql`${withdrawalsAssociates.id}::text = ${associateAccountMovements.referenceId}`,
+        ),
+      )
+      .innerJoin(
+        withdrawalTypes,
+        eq(withdrawalTypes.id, withdrawalsAssociates.withdrawalTypeId),
+      )
+      .where(
+        and(
+          eq(associateAccountMovements.associateAccountId, associateAccountId),
+          eq(associateAccountMovements.status, 'COMPLETED'),
+          isNotNull(associateAccountMovements.referenceId),
+          inArray(associateAccountMovements.movementType, [
+            'SAVING_WITHDRAWAL',
+            'WITHDRAWAL_FEE_DEBIT',
+            'SAVING_WITHDRAWAL_REVERSAL_CREDIT',
+          ]),
+        ),
+      )
+      .groupBy(
+        withdrawalTypes.description,
+        withdrawalTypes.isHouseComercial,
+        withdrawalTypes.isInternalInventory,
+        associateAccountMovements.movementType,
+      );
+
+    for (const row of referencedRows) {
+      lines.push({
+        description: row.description,
+        isSpecial:
+          Boolean(row.isHouseComercial) || Boolean(row.isInternalInventory),
+        amount: Number(row.amount),
+        overpayment:
+          row.movementType === 'SAVING_WITHDRAWAL_REVERSAL_CREDIT',
+      });
+    }
+
+    // 2. Retiros SIN referencia (acumulados migrados): se agrupan por su
+    //    descripcion y se identifica el tipo por coincidencia de palabras.
+    const unreferencedRows = await db
+      .select({
+        rawDescription: associateAccountMovements.description,
+        amount: sum(associateAccountMovements.amount),
+        movementType: associateAccountMovements.movementType,
+      })
+      .from(associateAccountMovements)
+      .where(
+        and(
+          eq(associateAccountMovements.associateAccountId, associateAccountId),
+          eq(associateAccountMovements.status, 'COMPLETED'),
+          isNull(associateAccountMovements.referenceId),
+          inArray(associateAccountMovements.movementType, [
+            'SAVING_WITHDRAWAL',
+            'WITHDRAWAL_FEE_DEBIT',
+            'SAVING_WITHDRAWAL_REVERSAL_CREDIT',
+          ]),
+        ),
+      )
+      .groupBy(
+        associateAccountMovements.description,
+        associateAccountMovements.movementType,
+      );
+
+    if (unreferencedRows.length > 0) {
+      const types = await db
+        .select({
+          description: withdrawalTypes.description,
+          isHouseComercial: withdrawalTypes.isHouseComercial,
+          isInternalInventory: withdrawalTypes.isInternalInventory,
+        })
+        .from(withdrawalTypes)
+        .where(eq(withdrawalTypes.tenantId, tenantId));
+
+      for (const row of unreferencedRows) {
+        const raw = row.rawDescription ?? '';
+        const matched = this.matchWithdrawalTypeByDescription(raw, types);
+        lines.push({
+          description: matched?.description ?? '',
+          isSpecial: matched
+            ? Boolean(matched.isHouseComercial) ||
+              Boolean(matched.isInternalInventory)
+            : false,
+          amount: Number(row.amount),
+          overpayment:
+            row.movementType === 'SAVING_WITHDRAWAL_REVERSAL_CREDIT',
+        });
+        this.logger.debug(
+          `[Liquidacion] Retiro acumulado sin referencia: "${raw}" -> tipo: ${
+            matched?.description ?? '(no identificado)'
+          } | monto=${Number(row.amount)}`,
+        );
+      }
+    }
+
+    return lines;
+  }
+
   async approve(
     tenantId: string,
     userId: string,
     liquidationId: string,
-    options?: { isBulk?: boolean; date?: Date },
+    options?: {
+      isBulk?: boolean;
+      date?: Date;
+      /** Permite ejecutar el core sin generar el asiento individual. */
+      skipAccountingEntry?: boolean;
+      /** Devuelve los montos necesarios para un asiento consolidado. */
+      returnAccountingData?: boolean;
+      /** Transacción externa para operaciones atómicas multi-asociado. */
+      tx?: NodePgDatabase<typeof schema>;
+    },
   ) {
     const bulkNote = options?.isBulk ? ' (carga masiva)' : '';
-    return this.db.transaction(async (tx) => {
+    const run = async (tx: NodePgDatabase<typeof schema>) => {
       const [liquidation] = await tx
         .select()
         .from(liquidationsAssociates)
@@ -716,123 +863,20 @@ export class SettlementAssociateService {
       const haberes =
         await this.savingsLiquidationService.calculateAssociateLiquidation(
           associate.cedula,
+          tenantId,
         );
       const loanAccountingLines: LiquidationDebtLine[] = [];
       const creditAccountingLines: LiquidationDebtLine[] = [];
       const withdrawalAccountingLines: LiquidationWithdrawalLine[] = [];
 
       if (accountId) {
-        // 1. Retiros CON referencia -> el tipo sale directo de la tabla.
-        const referencedRows = await tx
-          .select({
-            description: withdrawalTypes.description,
-            isHouseComercial: withdrawalTypes.isHouseComercial,
-            isInternalInventory: withdrawalTypes.isInternalInventory,
-            amount: sum(associateAccountMovements.amount),
-            movementType: associateAccountMovements.movementType,
-          })
-          .from(associateAccountMovements)
-          .innerJoin(
-            withdrawalsAssociates,
-            and(
-              eq(withdrawalsAssociates.tenantId, tenantId),
-              sql`${withdrawalsAssociates.id}::text = ${associateAccountMovements.referenceId}`,
-            ),
-          )
-          .innerJoin(
-            withdrawalTypes,
-            eq(withdrawalTypes.id, withdrawalsAssociates.withdrawalTypeId),
-          )
-          .where(
-            and(
-              eq(associateAccountMovements.associateAccountId, accountId),
-              eq(associateAccountMovements.status, 'COMPLETED'),
-              isNotNull(associateAccountMovements.referenceId),
-              inArray(associateAccountMovements.movementType, [
-                'SAVING_WITHDRAWAL',
-                'WITHDRAWAL_FEE_DEBIT',
-                'SAVING_WITHDRAWAL_REVERSAL_CREDIT',
-              ]),
-            ),
-          )
-          .groupBy(
-            withdrawalTypes.description,
-            withdrawalTypes.isHouseComercial,
-            withdrawalTypes.isInternalInventory,
-            associateAccountMovements.movementType,
-          );
-
-        for (const row of referencedRows) {
-          withdrawalAccountingLines.push({
-            description: row.description,
-            isSpecial:
-              Boolean(row.isHouseComercial) || Boolean(row.isInternalInventory),
-            amount: Number(row.amount),
-            overpayment:
-              row.movementType === 'SAVING_WITHDRAWAL_REVERSAL_CREDIT'
-                ? true
-                : false,
-          });
-        }
-
-        // 2. Retiros SIN referencia (acumulados migrados): se agrupan por su
-        //    descripcion y se identifica el tipo por coincidencia de palabras.
-        const unreferencedRows = await tx
-          .select({
-            rawDescription: associateAccountMovements.description,
-            amount: sum(associateAccountMovements.amount),
-            movementType: associateAccountMovements.movementType,
-          })
-          .from(associateAccountMovements)
-          .where(
-            and(
-              eq(associateAccountMovements.associateAccountId, accountId),
-              eq(associateAccountMovements.status, 'COMPLETED'),
-              isNull(associateAccountMovements.referenceId),
-              inArray(associateAccountMovements.movementType, [
-                'SAVING_WITHDRAWAL',
-                'WITHDRAWAL_FEE_DEBIT',
-                'SAVING_WITHDRAWAL_REVERSAL_CREDIT',
-              ]),
-            ),
-          )
-          .groupBy(
-            associateAccountMovements.description,
-            associateAccountMovements.movementType,
-          );
-
-        if (unreferencedRows.length > 0) {
-          const types = await tx
-            .select({
-              description: withdrawalTypes.description,
-              isHouseComercial: withdrawalTypes.isHouseComercial,
-              isInternalInventory: withdrawalTypes.isInternalInventory,
-            })
-            .from(withdrawalTypes)
-            .where(eq(withdrawalTypes.tenantId, tenantId));
-
-          for (const row of unreferencedRows) {
-            const raw = row.rawDescription ?? '';
-            const matched = this.matchWithdrawalTypeByDescription(raw, types);
-            withdrawalAccountingLines.push({
-              description: matched?.description ?? '',
-              isSpecial: matched
-                ? Boolean(matched.isHouseComercial) ||
-                  Boolean(matched.isInternalInventory)
-                : false,
-              amount: Number(row.amount),
-              overpayment:
-                row.movementType === 'SAVING_WITHDRAWAL_REVERSAL_CREDIT'
-                  ? true
-                  : false,
-            });
-            this.logger.debug(
-              `[Liquidacion] Retiro acumulado sin referencia: "${raw}" -> tipo: ${
-                matched?.description ?? '(no identificado)'
-              } | monto=${Number(row.amount)}`,
-            );
-          }
-        }
+        withdrawalAccountingLines.push(
+          ...(await this.getWithdrawalAccountingLines(
+            tenantId,
+            accountId,
+            tx,
+          )),
+        );
       }
 
       // 1. Pay off outstanding loans from savings
@@ -847,9 +891,12 @@ export class SettlementAssociateService {
           .leftJoin(loans, eq(loans.id, schema.loanOutstandingBalance.loanId))
           .leftJoin(loanTypes, eq(loanTypes.id, loans.loanTypeId))
           .where(
-            eq(
-              schema.loanOutstandingBalance.associateId,
-              liquidation.associateId,
+            and(
+              eq(
+                schema.loanOutstandingBalance.associateId,
+                liquidation.associateId,
+              ),
+              eq(schema.loanOutstandingBalance.currencyCode, 'VES'),
             ),
           );
 
@@ -984,9 +1031,12 @@ export class SettlementAssociateService {
           )
           .leftJoin(creditsTypes, eq(creditsTypes.id, credits.creditTypeId))
           .where(
-            eq(
-              schema.creditOutstandingBalance.associateId,
-              liquidation.associateId,
+            and(
+              eq(
+                schema.creditOutstandingBalance.associateId,
+                liquidation.associateId,
+              ),
+              eq(schema.creditOutstandingBalance.currencyCode, 'VES'),
             ),
           );
 
@@ -1188,31 +1238,44 @@ export class SettlementAssociateService {
         }
       }
 
-      // 3.1 Generate the automatic accounting entry.
-      await this.settlementAccountingService.generateLiquidationEntry(
-        tenantId,
-        userId,
-        {
-          liquidationId: liquidation.id,
-          associateId: associate.id,
-          associateAccountId: accountId,
-          associateFullname: associate.fullname,
-          associateCedula: associate.cedula,
-          entryDate: processedDate,
-          currencyCode: 'VES' as CurrencyCodeEnum,
-          settlementType: liquidation.settlementType as 'COMPLETE' | 'SPECIAL',
-          haberesContribution: haberes.haberes_contribution,
-          haberesVoluntary: haberes.haberes_voluntary,
-          haberesEmployer: haberes.haberes_employer,
-          surpluses: haberes.surpluses,
-          totalHaberesBalance: totalSavings,
-          withdrawals: withdrawalAccountingLines,
-          loans: loanAccountingLines,
-          credits: creditAccountingLines,
-          netAmount,
-        },
-        tx,
-      );
+      const accountingData = {
+        haberes,
+        withdrawals: withdrawalAccountingLines,
+        loans: loanAccountingLines,
+        credits: creditAccountingLines,
+        netAmount,
+      };
+
+      // 3.1 Generate the automatic accounting entry (individual). En las
+      // operaciones especiales se omite para generar un asiento consolidado.
+      if (!options?.skipAccountingEntry) {
+        await this.settlementAccountingService.generateLiquidationEntry(
+          tenantId,
+          userId,
+          {
+            liquidationId: liquidation.id,
+            associateId: associate.id,
+            associateAccountId: accountId,
+            associateFullname: associate.fullname,
+            associateCedula: associate.cedula,
+            entryDate: processedDate,
+            currencyCode: 'VES' as CurrencyCodeEnum,
+            settlementType: liquidation.settlementType as
+              | 'COMPLETE'
+              | 'SPECIAL',
+            haberesContribution: haberes.haberes_contribution,
+            haberesVoluntary: haberes.haberes_voluntary,
+            haberesEmployer: haberes.haberes_employer,
+            surpluses: haberes.surpluses,
+            totalHaberesBalance: totalSavings,
+            withdrawals: withdrawalAccountingLines,
+            loans: loanAccountingLines,
+            credits: creditAccountingLines,
+            netAmount,
+          },
+          tx,
+        );
+      }
 
       // 4. Mark associate as RETIRED
       await tx
@@ -1266,8 +1329,13 @@ export class SettlementAssociateService {
       return {
         message: `Liquidación procesada exitosamente. El asociado ha sido retirado.`,
         liquidationId: liquidation.id,
+        accountingData: options?.returnAccountingData
+          ? accountingData
+          : undefined,
       };
-    });
+    };
+
+    return options?.tx ? run(options.tx) : this.db.transaction(run);
   }
 
   async disburse(
@@ -1308,6 +1376,29 @@ export class SettlementAssociateService {
       ) {
         throw new BadRequestException(
           `Solo se pueden desembolsar liquidaciones en estado 'PROCESADO' o en lote de pago.`,
+        );
+      }
+
+      // Las liquidaciones de Operaciones Especiales se aplican contra una
+      // cuenta de ingreso y no se pagan por banco.
+      if (
+        liquidation.liquidations_associates.originType ===
+        'SPECIAL_OPERATION'
+      ) {
+        throw new BadRequestException(
+          'Las liquidaciones de Operaciones Especiales no se desembolsan por banco.',
+        );
+      }
+
+      // Las Liquidaciones Especiales (pago a tercero) se pagan únicamente
+      // mediante el lote de pago especial. El lote confirma con
+      // skipBankTransaction = true, por lo que este bloqueo no lo afecta.
+      if (
+        liquidation.liquidations_associates.settlementType === 'SPECIAL' &&
+        !skipBankTransaction
+      ) {
+        throw new BadRequestException(
+          'Las Liquidaciones Especiales (pago a tercero) deben pagarse mediante un lote de pago especial.',
         );
       }
 
@@ -1451,6 +1542,7 @@ export class SettlementAssociateService {
           liquidationsAssociates.totalOutstandingCreditsAtLiquidation,
         netLiquidationAmount: liquidationsAssociates.netLiquidationAmount,
         settlementType: liquidationsAssociates.settlementType,
+        originType: liquidationsAssociates.originType,
         associateCedula: associates.cedula,
         associateFullname: associates.fullname,
         status: liquidationsAssociates.status,
@@ -1491,6 +1583,12 @@ export class SettlementAssociateService {
       eq(liquidationsAssociates.status, 'PROCESSED'),
       eq(liquidationsAssociates.tenantId, tenantId),
       eq(liquidationsAssociates.settlementType, settlementType),
+      // Las liquidaciones generadas por Operaciones Especiales ya fueron
+      // aplicadas y no deben incluirse en un lote de pago.
+      or(
+        isNull(liquidationsAssociates.originType),
+        ne(liquidationsAssociates.originType, 'SPECIAL_OPERATION'),
+      ),
     );
 
     const totalCountResult = await this.db

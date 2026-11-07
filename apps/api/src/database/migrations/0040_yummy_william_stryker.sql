@@ -1,0 +1,2 @@
+DROP INDEX "savings"."special_operations_reference_uidx";--> statement-breakpoint
+CREATE UNIQUE INDEX "special_operations_reference_uidx" ON "savings"."special_operations" USING btree ("tenant_id","reference");

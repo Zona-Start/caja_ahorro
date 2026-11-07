@@ -61,26 +61,42 @@ export function LoanSearch({
 
       if (isError) {
         onSelectAssociate(null);
-        const err = error as Error & { response?: { status: number } };
-        const errorMessage = err?.message || 'Error desconocido';
+        const err = error as Error & {
+          response?: {
+            status?: number;
+            data?: { message?: string | string[] };
+          };
+        };
+        const backendMessage = Array.isArray(err?.response?.data?.message)
+          ? err.response?.data?.message.join(' ')
+          : err?.response?.data?.message;
+        const errorMessage = backendMessage || err?.message || 'Error desconocido';
+        const normalized = errorMessage.toLowerCase();
         const status = err?.response?.status;
 
-        if (errorMessage.includes('not found') || status === 404) {
+        if (normalized.includes('liquidado') || normalized.includes('retired')) {
           toast.info({
-            title: 'Asociado no encontrado',
-            description: `No se encontró un asociado con la cédula ${submittedSearchTerm}.`,
-          });
-        } else if (errorMessage.includes('retired')) {
-          toast.info({
-            title: 'Asociado retirado',
+            title: 'Asociado liquidado',
             description:
-              'El asociado está liquidado de la caja de ahorro y no puede ser seleccionado.',
+              'El asociado está liquidado y no puede crear préstamos.',
           });
-        } else if (errorMessage.includes('inactive')) {
+        } else if (
+          normalized.includes('inactivo') ||
+          normalized.includes('inactive')
+        ) {
           toast.warning({
             title: 'Asociado inactivo',
             description:
-              'El asociado está inactivo y no puede ser seleccionado.',
+              'El asociado está inactivo y no puede crear préstamos.',
+          });
+        } else if (
+          status === 404 ||
+          normalized.includes('not found') ||
+          normalized.includes('no encontrado')
+        ) {
+          toast.info({
+            title: 'Asociado no encontrado',
+            description: `No se encontró un asociado con la cédula ${submittedSearchTerm}.`,
           });
         } else {
           toast.error({

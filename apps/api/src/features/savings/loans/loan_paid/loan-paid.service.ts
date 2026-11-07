@@ -225,7 +225,7 @@ export class LoanPaidService {
       );
 
     if (!associate.length) {
-      throw new NotFoundException(`Associate with cedula ${cedula} not found`);
+      throw new NotFoundException('Asociado no se encuentra registrado');
     }
     if (associate[0].status === 'INACTIVE') {
       throw new NotFoundException(

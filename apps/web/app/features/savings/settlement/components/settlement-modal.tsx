@@ -519,8 +519,9 @@ export function SettlementModal({ open, onOpenChange }: Props) {
                         </Select>
                         {field.value === 'SPECIAL' && (
                           <p className="text-xs text-muted-foreground">
-                            La liquidación especial se desembolsa a una cuenta
-                            destino indicada en Pagos Especiales.
+                            La Liquidación Especial (pago a tercero) se
+                            desembolsa a una cuenta destino indicada en Pagos
+                            Especiales (terceros).
                           </p>
                         )}
                         <FormMessage />

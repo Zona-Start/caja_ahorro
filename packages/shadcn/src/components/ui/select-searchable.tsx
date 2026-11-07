@@ -15,6 +15,7 @@ function SelectSearchable({
   disabled,
   enableNoneOption = false,
   error,
+  searchDelay = 250,
 }: {
   options: { value: string; label: string }[];
   onValueChange: (value: string | null) => void;
@@ -24,15 +25,28 @@ function SelectSearchable({
   disabled?: boolean;
   enableNoneOption?: boolean;
   error?: string;
+  /** Milisegundos de espera antes de filtrar mientras se escribe. */
+  searchDelay?: number;
 }) {
   const [searchTerm, setSearchTerm] = React.useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = React.useState('');
   const searchInputRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    const timer = setTimeout(
+      () => setDebouncedSearchTerm(searchTerm),
+      searchDelay,
+    );
+    return () => clearTimeout(timer);
+  }, [searchTerm, searchDelay]);
+
+  const normalizedSearch = debouncedSearchTerm.trim().toLowerCase();
 
   const filteredOptions = [
     ...(enableNoneOption ? [{ value: 'null', label: 'Ninguno' }] : []),
     ...options,
   ].filter((option) =>
-    option.label.toLowerCase().includes(searchTerm.toLowerCase()),
+    option.label.toLowerCase().includes(normalizedSearch),
   );
 
   return (
@@ -46,6 +60,9 @@ function SelectSearchable({
           setTimeout(() => {
             searchInputRef.current?.focus();
           }, 100);
+        } else {
+          setSearchTerm('');
+          setDebouncedSearchTerm('');
         }
       }}
     >
@@ -64,7 +81,7 @@ function SelectSearchable({
 
       <SelectPrimitive.Portal>
         <SelectPrimitive.Content
-          className="bg-popover text-popover-foreground z-50 max-h-60 w-full overflow-y-auto rounded-md border shadow-md"
+          className="bg-popover text-popover-foreground z-50 max-h-60 w-full min-w-72 overflow-y-auto rounded-md border shadow-md"
           position="popper"
           style={{ width: 'var(--radix-select-trigger-width)' }}
         >
@@ -77,8 +94,11 @@ function SelectSearchable({
               autoComplete="off"
               onChange={(e) => {
                 setSearchTerm(e.target.value);
-                // Radix puede mover el foco a los items al teclear; lo recuperamos.
-                searchInputRef.current?.focus();
+                // Radix puede mover el foco a los items al teclear; lo recuperamos
+                // en el siguiente frame para no competir con su manejo interno.
+                requestAnimationFrame(() => {
+                  searchInputRef.current?.focus();
+                });
               }}
               onKeyDown={(e) => {
                 // El Content de Radix Select ejecuta handleTypeaheadSearch con
@@ -93,6 +113,11 @@ function SelectSearchable({
             />
           </div>
           <SelectPrimitive.Viewport className="p-1">
+            {filteredOptions.length === 0 && (
+              <div className="px-2 py-3 text-sm text-muted-foreground">
+                Sin resultados
+              </div>
+            )}
             {filteredOptions.map((option) => (
               <SelectPrimitive.Item
                 key={option.value}

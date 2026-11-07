@@ -93,7 +93,11 @@ export class WithdrawalTypesService {
 
     const offset = (page - 1) * limit;
 
-    const searchConditions: SQL<unknown>[] = [];
+    const searchConditions: SQL<unknown>[] = [
+      // Los tipos de sistema se usan internamente en Operaciones Especiales
+      // y no deben aparecer en el mantenimiento normal de tipos de retiro.
+      eq(withdrawalTypes.isSystem, false),
+    ];
 
     if (search) {
       switch (searchType) {
@@ -154,7 +158,9 @@ export class WithdrawalTypesService {
   }
 
   async findAll(tenantId: string | null): Promise<WithdrawalTypeSelect[]> {
-    const conditions: SQL<unknown>[] = [];
+    const conditions: SQL<unknown>[] = [
+      eq(withdrawalTypes.isSystem, false),
+    ];
 
     if (tenantId) {
       conditions.push(eq(withdrawalTypes.tenantId, tenantId));
@@ -163,7 +169,7 @@ export class WithdrawalTypesService {
     return this.db
       .select()
       .from(withdrawalTypes)
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .where(and(...conditions))
       .orderBy(sql`${withdrawalTypes.createdAt} desc`);
   }
 

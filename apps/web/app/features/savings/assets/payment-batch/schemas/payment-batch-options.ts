@@ -13,7 +13,7 @@ export const PAYMENT_BATCH_ITEM_TYPE = {
 
 export const BATCH_TYPE = {
   PAYMENT: 'Pago',
-  SPECIAL_PAYMENT: 'Pago Especial',
+  SPECIAL_PAYMENT: 'Pago Especial (terceros)',
   LOAN_DISBURSEMENT: 'Desembolso Préstamo',
 } as const;
 

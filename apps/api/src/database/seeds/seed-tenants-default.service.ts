@@ -286,6 +286,32 @@ export class AccountPlanSeederService {
           break;
       }
 
+      // Permisos adicionales declarados explícitamente en la plantilla del
+      // tenant (ej. módulos nuevos que no encajan en los filtros por prefijo).
+      const templatePermissions = (roleData.permissions ?? []) as {
+        resource: string;
+        actions: string[];
+      }[];
+
+      if (templatePermissions.length > 0) {
+        const extraPermissions = allPermissions.filter((permission) =>
+          templatePermissions.some(
+            (templatePermission) =>
+              templatePermission.resource === permission.resource &&
+              templatePermission.actions.includes(permission.action),
+          ),
+        );
+
+        const mergedPermissions = new Map<
+          string,
+          (typeof allPermissions)[number]
+        >();
+        for (const permission of [...permsToAssign, ...extraPermissions]) {
+          mergedPermissions.set(permission.id, permission);
+        }
+        permsToAssign = Array.from(mergedPermissions.values());
+      }
+
       // ✅ OPTIMIZACIÓN 2: BULK INSERT (Inserción Masiva)
       if (permsToAssign.length > 0) {
         // Preparamos el array de objetos

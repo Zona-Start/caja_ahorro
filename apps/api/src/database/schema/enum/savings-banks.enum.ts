@@ -186,6 +186,27 @@ export const paymentBatchItemType = savingsSchema.enum(
   'payment_batch_item_type',
   ['LOAN', 'WITHDRAWAL', 'LIQUIDATION'],
 );
+
+// Operaciones especiales de caja de ahorro
+export const specialOperationTypeEnum = savingsSchema.enum(
+  'special_operation_type',
+  ['LIQUIDATION_VS_INCOME', 'LOAN_WITHDRAWAL_VS_SAVINGS'],
+);
+
+export const specialOperationStatusEnum = savingsSchema.enum(
+  'special_operation_status',
+  ['PROCESSING', 'COMPLETED', 'FAILED', 'CANCELLED'],
+);
+
+export const specialOperationItemStatusEnum = savingsSchema.enum(
+  'special_operation_item_status',
+  ['PROCESSED', 'ERROR'],
+);
+
+export const specialOperationMovementTypeEnum = savingsSchema.enum(
+  'special_operation_movement_type',
+  ['DEBIT', 'CREDIT'],
+);
 export const paymentBatchStatus = savingsSchema.enum('payment_batch_status', [
   'DRAFT', // en edición
   'UPLOADED', // archivo generado y subido al banco

@@ -22,6 +22,7 @@ import {
   Settings,
   Shield,
   ShoppingCart,
+  Sparkles,
   Tag,
   Upload,
   UserCog,
@@ -288,6 +289,15 @@ export const navGroups: NavGroup[] = [
         requiresPermission: {
           resource: 'savings:contributions',
           action: 'mass_upload',
+        },
+      },
+      {
+        label: 'Operaciones Especiales',
+        href: '/dashboard/caja-ahorro/operaciones-especiales',
+        icon: Sparkles,
+        requiresPermission: {
+          resource: 'savings:special-operations',
+          action: 'read',
         },
       },
       {

@@ -36,6 +36,10 @@ import {
   reimbursementOriginTypeEnum,
   reimbursementsStatusEnum,
   settlementTypeEnum,
+  specialOperationItemStatusEnum,
+  specialOperationMovementTypeEnum,
+  specialOperationStatusEnum,
+  specialOperationTypeEnum,
   statusEnum,
   withdrawalStatusEnum,
 } from '../enum';
@@ -241,7 +245,7 @@ export const withdrawalTypes = savingsSchema.table(
         onDelete: 'cascade',
       })
       .notNull(),
-    description: varchar('description', { length: 255 }).notNull().unique(), // Descripción del tipo de retiro (ej: 'Retiro regular', 'Retiro por emergencia')
+    description: varchar('description', { length: 255 }).notNull(), // Descripción del tipo de retiro (ej: 'Retiro regular', 'Retiro por emergencia')
     withdrawalPercentage: numeric('withdrawal_percentage', {
       precision: 5,
       scale: 2,
@@ -266,12 +270,16 @@ export const withdrawalTypes = savingsSchema.table(
     isInternalInventory: boolean('is_internal_inventory')
       .notNull()
       .default(false),
+    // Los tipos de sistema son creados por el backend para operaciones
+    // internas (ej. Retiro Préstamo vs Haberes) y no deben editarse desde la UI.
+    isSystem: boolean('is_system').notNull().default(false),
     ...timestamps,
   },
   (table) => ({
     descriptionIdx: uniqueIndex('withdrawal_types_description_uidx').on(
+      table.tenantId,
       table.description,
-    ), // Índice único para la descripción
+    ), // Índice único por tenant para la descripción
     accountDebitIdx: index('withdrawal_types_account_debit_idx').on(
       table.accountDebit,
     ), // Índice para la cuenta de débito
@@ -1052,6 +1060,9 @@ export const liquidationsAssociates = savingsSchema.table(
     payoutTransactionId: integer('payout_transaction_id'), // Opcional: FK a una tabla de transacciones de pago si la tienes
     customReference: varchar('custom_reference', { length: 50 }), // Nro. trasaccion personalizado
     beneficiary: jsonb('beneficiary'), // Información del beneficiario (puede ser un objeto JSON con nombre, cuenta bancaria, etc.)
+    // Permite distinguir liquidaciones normales de las generadas por el área
+    // de Operaciones Especiales (y excluirlas de los lotes de pago).
+    originType: varchar('origin_type', { length: 30 }),
     notes: text('notes'), // Campo para cualquier nota relevante de la liquidación
     ...timestamps, // created_at y updated_at
   },
@@ -1314,5 +1325,119 @@ export const contributionBatchAssociates = savingsSchema.table(
     associateIdx: index('contrib_batch_assoc_associate_idx').on(
       table.associateId,
     ),
+  }),
+);
+
+/**
+ * Cabecera de una Operación Especial de caja de ahorro.
+ * Agrupa N asociados procesados en una sola operación y un solo asiento.
+ */
+export const specialOperations = savingsSchema.table(
+  'special_operations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .references(() => tenants.id, { onDelete: 'cascade' })
+      .notNull(),
+    reference: varchar('reference', { length: 50 }).notNull(),
+    operationType: specialOperationTypeEnum('operation_type').notNull(),
+    operationDate: date('operation_date').notNull(),
+    status: specialOperationStatusEnum('status')
+      .notNull()
+      .default('PROCESSING'),
+    totalAssociates: integer('total_associates').notNull().default(0),
+    totalAmount: numeric('total_amount', { precision: 20, scale: 6 })
+      .notNull()
+      .default('0'),
+    currencyCode: currencyCodeEnum('currency_code').notNull().default('VES'),
+    // Snapshot de la regla definida en el paso 4 (rol, cuenta, tipo, auxiliar).
+    accountConfig: jsonb('account_config'),
+    accountingEntryId: uuid('accounting_entry_id').references(
+      () => accountingEntries.id,
+      { onDelete: 'set null' },
+    ),
+    notes: text('notes'),
+    ...timestamps,
+  },
+  (table) => ({
+    referenceIdx: uniqueIndex('special_operations_reference_uidx').on(
+      table.tenantId,
+      table.reference,
+    ),
+    tenantStatusIdx: index('special_operations_tenant_status_idx').on(
+      table.tenantId,
+      table.status,
+    ),
+    dateIdx: index('special_operations_date_idx').on(table.operationDate),
+  }),
+);
+
+/** Detalle por asociado de una Operación Especial. */
+export const specialOperationItems = savingsSchema.table(
+  'special_operation_items',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    operationId: uuid('operation_id')
+      .references(() => specialOperations.id, { onDelete: 'cascade' })
+      .notNull(),
+    associateId: uuid('associate_id').references(() => associates.id, {
+      onDelete: 'restrict',
+    }),
+    cedula: varchar('cedula', { length: 20 }).notNull(),
+    fullname: varchar('fullname', { length: 255 }).notNull(),
+    // Montos calculados por el backend para este asociado.
+    amounts: jsonb('amounts').notNull(),
+    status: specialOperationItemStatusEnum('status')
+      .notNull()
+      .default('PROCESSED'),
+    errorMessage: text('error_message'),
+    liquidationId: uuid('liquidation_id').references(
+      () => liquidationsAssociates.id,
+      { onDelete: 'set null' },
+    ),
+    withdrawalId: uuid('withdrawal_id').references(
+      () => withdrawalsAssociates.id,
+      { onDelete: 'set null' },
+    ),
+    loanPaymentIds: jsonb('loan_payment_ids'),
+    ...timestamps,
+  },
+  (table) => ({
+    operationIdx: index('special_operation_items_operation_idx').on(
+      table.operationId,
+    ),
+    associateIdx: index('special_operation_items_associate_idx').on(
+      table.associateId,
+    ),
+    cedulaIdx: index('special_operation_items_cedula_idx').on(table.cedula),
+  }),
+);
+
+/**
+ * Regla contable propia de Operaciones Especiales.
+ * Se define en el paso 4 del wizard y es independiente del mapa de
+ * integraciones existente. El rol permite mapear el monto calculado a la cuenta.
+ */
+export const specialOperationAccountConfigs = savingsSchema.table(
+  'special_operation_account_configs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .references(() => tenants.id, { onDelete: 'cascade' })
+      .notNull(),
+    operationType: specialOperationTypeEnum('operation_type').notNull(),
+    role: varchar('role', { length: 120 }).notNull(),
+    label: varchar('label', { length: 255 }),
+    accountPlanId: uuid('account_plan_id').references(() => accountPlan.id, {
+      onDelete: 'set null',
+    }),
+    movementType: specialOperationMovementTypeEnum('movement_type').notNull(),
+    isAuxiliary: boolean('is_auxiliary').notNull().default(false),
+    ...timestamps,
+  },
+  (table) => ({
+    tenantOperationRoleIdx: uniqueIndex(
+      'special_operation_account_configs_uidx',
+    ).on(table.tenantId, table.operationType, table.role),
   }),
 );

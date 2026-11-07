@@ -23,21 +23,45 @@ export const CAJA_AHORRO_TEMPLATE: BusinessTypeTemplate = {
       name: 'admin',
       description: 'Administrador con acceso de gestión',
       isDefault: false,
+      permissions: [
+        {
+          resource: 'savings:special-operations',
+          actions: ['read', 'create', 'config', 'execute'],
+        },
+      ],
     },
     {
       name: 'ejecutivo',
       description: 'Ejecutivo con acceso de alto nivel',
       isDefault: false,
+      permissions: [
+        {
+          resource: 'savings:special-operations',
+          actions: ['read', 'create', 'config', 'execute'],
+        },
+      ],
     },
     {
       name: 'contador',
       description: 'Contador con acceso financiero',
       isDefault: false,
+      permissions: [
+        {
+          resource: 'savings:special-operations',
+          actions: ['read'],
+        },
+      ],
     },
     {
       name: 'asistente',
       description: 'Asistente con acceso basico',
       isDefault: true,
+      permissions: [
+        {
+          resource: 'savings:special-operations',
+          actions: ['read', 'create'],
+        },
+      ],
     },
   ],
 
@@ -176,6 +200,20 @@ export const CAJA_AHORRO_TEMPLATE: BusinessTypeTemplate = {
       key: 'LIQ-SOC',
       value: '0',
       description: 'Consecutivo Liquidación Asociados',
+    },
+    {
+      module: 'savings',
+      submodule: 'special-operations',
+      key: 'AUTO_POST_ENTRY_SPECIAL_OPERATIONS',
+      value: 'true',
+      description: 'Generar asiento contable en operaciones especiales',
+    },
+    {
+      module: 'savings',
+      submodule: 'special-operations',
+      key: 'OPE-ESP',
+      value: '0',
+      description: 'Consecutivo Operaciones Especiales',
     },
     {
       module: 'savings',

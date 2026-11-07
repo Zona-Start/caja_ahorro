@@ -6,6 +6,7 @@
     "db:generate": "drizzle-kit generate --config ./src/drizzle.config.ts",
     "db:generate-custom": "drizzle-kit generate --custom --name=function-calculate-associate-liquidation --config ./src/drizzle.config.ts",
     "db:migrate": "drizzle-kit migrate --config ./src/drizzle.config.ts",
+    "db:seed:special-operations": "tsx scripts/seed-special-operations-permissions.ts",
     "sync:rates": "tsx scripts/sync-rates.ts",
     "dev": "nest start -b swc -w",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
