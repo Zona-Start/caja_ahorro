@@ -152,6 +152,7 @@ export class PaymentBatchesService {
                 associateCedula: schema.associates.cedula,
                 associateFullname: schema.associates.fullname,
                 accountNumber: schema.associateAccounts.accountNumber,
+                beneficiary: schema.liquidationsAssociates.beneficiary,
               })
               .from(schema.liquidationsAssociates)
               .leftJoin(
@@ -164,8 +165,10 @@ export class PaymentBatchesService {
               .leftJoin(
                 schema.associateAccounts,
                 and(
-                  eq(schema.associateAccounts.associateId, schema.associates.id),
-                  eq(schema.associateAccounts.status, 'ACTIVE'),
+                  eq(
+                    schema.associateAccounts.associateId,
+                    schema.associates.id,
+                  ),
                   eq(schema.associateAccounts.currencyCode, 'VES'),
                 ),
               )
@@ -174,7 +177,9 @@ export class PaymentBatchesService {
                   eq(schema.liquidationsAssociates.id, it.sourceId),
                   eq(schema.liquidationsAssociates.tenantId, tenantId),
                 ),
-              );
+              )
+              .orderBy(desc(schema.associateAccounts.createdAt))
+              .limit(1);
 
             if (
               rec.length === 0 ||
@@ -201,9 +206,17 @@ export class PaymentBatchesService {
             assocNationality = rec[0].associateNationality?.[0] || '';
             assocCedula = `${assocNationality}${rec[0].associateCedula}`;
             beneficiaryName = rec[0].associateFullname ?? '';
+
+            // En liquidaciones la cuenta del asociado queda RETIRED al
+            // procesarse, pero su número sigue siendo válido para el pago.
+            // Se prioriza la cuenta del beneficiario si fue registrada; si no,
+            // se usa la cuenta propia del asociado.
+            const liquidationBeneficiary = rec[0].beneficiary as {
+              accountNumber?: string;
+            } | null;
             beneficiaryAccountNumber = isSpecial
               ? destinationAccountNumber!
-              : rec[0].accountNumber;
+              : liquidationBeneficiary?.accountNumber || rec[0].accountNumber;
             assocAccId = rec[0].disbursementAccountId;
             curr = 'VES';
             break;
