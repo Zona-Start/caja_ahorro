@@ -298,9 +298,32 @@ export class BcvScraperService implements OnModuleInit {
     }
 
     return {
-      USD: usdMatch[1].replace(',', '.'),
-      EUR: eurMatch[1].replace(',', '.'),
+      USD: this.normalizeBcvRate(usdMatch[1], 'USD'),
+      EUR: this.normalizeBcvRate(eurMatch[1], 'EUR'),
     };
+  }
+
+  /**
+   * El BCV usa coma como separador decimal y punto como separador de miles:
+   *   897,53830000     -> 897.53830000
+   *   1.001,18602288   -> 1001.18602288
+   */
+  private normalizeBcvRate(raw: string, currency: string): string {
+    const compact = raw.trim().replace(/\s+/g, '');
+    const normalized = compact.includes(',')
+      ? compact.replace(/\./g, '').replace(',', '.')
+      : compact;
+
+    if (!/^\d+(\.\d+)?$/.test(normalized)) {
+      throw new Error(`Invalid BCV rate for ${currency}: "${raw}"`);
+    }
+
+    const value = Number(normalized);
+    if (!Number.isFinite(value) || value <= 0) {
+      throw new Error(`Invalid BCV rate for ${currency}: "${raw}"`);
+    }
+
+    return normalized;
   }
 
   private parseFechaValor($: cheerio.CheerioAPI): Date {

@@ -29,6 +29,14 @@ describe('BcvScraperService', () => {
         ),
       ).toThrow();
     });
+
+    it('normaliza montos con separador de miles y coma decimal', () => {
+      const rates = service.parseRates(
+        'EUR 1.001,18602288 USD 897,53830000 Fecha Valor: Lunes, 09 Noviembre 2026',
+      );
+      expect(rates.EUR).toBe('1001.18602288');
+      expect(rates.USD).toBe('897.53830000');
+    });
   });
 
   describe('parseFechaValor', () => {
