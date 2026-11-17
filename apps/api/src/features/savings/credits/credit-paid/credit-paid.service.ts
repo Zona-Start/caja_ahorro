@@ -1635,7 +1635,10 @@ export class CreditPaidService implements OnModuleInit {
 
     const creditConditions: SQL<unknown>[] = [
       eq(credits.associateId, associate[0].id),
-      ne(credits.status, CreditStatusEnum.PAID),
+      inArray(credits.status, [
+        CreditStatusEnum.APPROVED,
+        CreditStatusEnum.IN_PAYMENT,
+      ]),
     ];
     if (tenantId) {
       creditConditions.push(eq(credits.tenantId, tenantId));

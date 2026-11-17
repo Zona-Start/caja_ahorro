@@ -42,7 +42,7 @@ export default function ReportsSociosHaberesPage() {
         />
         <ReportCard
           title="Variaciones"
-          description="Cuotas por cobrar préstamos a socio"
+          description="Variaciones consolidadas de préstamos y créditos"
           icon={BarChart3}
           onClick={() => setIsVariationsModalOpen(true)}
         />

@@ -18,10 +18,12 @@ import {
   FormLabel,
   FormMessage,
 } from '@repo/shadcn/form';
-import { Input } from '@repo/shadcn/input';
 import { Label } from '@repo/shadcn/label';
 import { RadioGroup, RadioGroupItem } from '@repo/shadcn/radio-group';
-import { useExportVariationsPdfMutation } from '../../hooks/use-reports-mutations';
+import {
+  useExportVariationsExcelMutation,
+  useExportVariationsPdfMutation,
+} from '../../hooks/use-reports-mutations';
 import {
   variationReportFilterSchema,
   type VariationReportFilters,
@@ -33,13 +35,13 @@ interface VariationsReportModalProps {
 }
 
 export function VariationsReportModal({ isOpen, onClose }: VariationsReportModalProps) {
-  const mutation = useExportVariationsPdfMutation();
+  const pdfMutation = useExportVariationsPdfMutation();
+  const excelMutation = useExportVariationsExcelMutation();
+  const isPending = pdfMutation.isPending || excelMutation.isPending;
 
   const form = useForm<VariationReportFilters>({
     resolver: zodResolver(variationReportFilterSchema),
     defaultValues: {
-      dateFrom: '',
-      dateTo: '',
       format: 'pdf',
     },
   });
@@ -51,6 +53,8 @@ export function VariationsReportModal({ isOpen, onClose }: VariationsReportModal
         cleanValues[k] = v as string;
       }
     });
+    const mutation =
+      values.format === 'excel' ? excelMutation : pdfMutation;
     mutation.mutate(cleanValues, {
       onSuccess: () => onClose(),
     });
@@ -65,41 +69,14 @@ export function VariationsReportModal({ isOpen, onClose }: VariationsReportModal
             Variaciones
           </DialogTitle>
           <DialogDescription>
-            Seleccione el rango de fechas para generar el reporte de variaciones.
+            Genere el reporte consolidado de variaciones de préstamos y
+            créditos. Incluye solo operaciones en bolívares (VES) y no requiere
+            rango de fechas.
           </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="dateFrom"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Fecha Desde</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="dateTo"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Fecha Hasta</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
             <FormField
               control={form.control}
               name="format"
@@ -131,8 +108,8 @@ export function VariationsReportModal({ isOpen, onClose }: VariationsReportModal
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending && (
+              <Button type="submit" disabled={isPending}>
+                {isPending && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
                 Generar Reporte

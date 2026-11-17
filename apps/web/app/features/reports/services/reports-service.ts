@@ -43,6 +43,14 @@ export const reportsService = {
     return response.data as ArrayBuffer;
   },
 
+  exportVariationsExcel: async (params: Record<string, string | undefined>) => {
+    const response = await apiClient.get(
+      `/reports/variations/excel?${buildSearchParams(params)}`,
+      { responseType: 'arraybuffer' },
+    );
+    return response.data as ArrayBuffer;
+  },
+
   exportLoansPdf: async (params: Record<string, string | undefined>) => {
     const response = await apiClient.get(
       `/reports/loans/pdf?${buildSearchParams(params)}`,

@@ -119,17 +119,16 @@ export class ReportsController {
   }
 
   @Get('variations/pdf')
-  @ApiOperation({ summary: 'Download variations PDF report with filters' })
+  @ApiOperation({ summary: 'Download variations PDF report' })
   async downloadVariationsPdf(
     @Req() req: Request,
     @Query(new ZodValidatorPipe(VariationsReportSchema))
-    filters: VariationsReportDto,
+    _filters: VariationsReportDto,
     @Res() res: Response,
   ) {
     const { targetTenantId } = this.tenantContext.getTenantContext(req);
     const pdfDoc = await this.variationsReportService.generatePdf(
       targetTenantId,
-      filters,
     );
     const today = new Date().toISOString().split('T')[0];
     const filename = `reporte_variaciones_${today}.pdf`;
@@ -137,6 +136,26 @@ export class ReportsController {
     res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
     pdfDoc.pipe(res);
     pdfDoc.end();
+  }
+
+  @Get('variations/excel')
+  @ApiOperation({ summary: 'Download variations Excel report' })
+  async downloadVariationsExcel(
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    const { targetTenantId } = this.tenantContext.getTenantContext(req);
+    const buffer = await this.variationsReportService.generateExcel(
+      targetTenantId,
+    );
+    const today = new Date().toISOString().split('T')[0];
+    const filename = `reporte_variaciones_${today}.xlsx`;
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+    res.send(buffer);
   }
 
   @Get('loans/pdf')

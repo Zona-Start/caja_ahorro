@@ -904,7 +904,9 @@ export function CreditPaidCreateModal({ open, onClose }: Props) {
           {selectedAssociate && !selectedAssociate.creditId && (
             <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
               <AlertCircle className="h-4 w-4 shrink-0" />
-              <span>El asociado no tiene créditos activos.</span>
+              <span>
+                El asociado no tiene créditos aprobados o en proceso de pago.
+              </span>
             </div>
           )}
         </div>

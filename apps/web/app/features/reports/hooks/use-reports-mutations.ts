@@ -14,6 +14,20 @@ function downloadPdf(data: ArrayBuffer, filename: string) {
   window.URL.revokeObjectURL(url);
 }
 
+function downloadExcel(data: ArrayBuffer, filename: string) {
+  const blob = new Blob([data], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+
 export function useExportAssociatesPdfMutation() {
   return useMutation({
     mutationFn: (params: Record<string, string | undefined>) =>
@@ -178,6 +192,29 @@ export function useExportVariationsPdfMutation() {
       toast({
         title: 'Reporte generado',
         description: 'El reporte de variaciones fue descargado correctamente.',
+      });
+    },
+    onError: () => {
+      toast({
+        title: 'Error',
+        description: 'Ocurrió un error al generar el reporte.',
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+export function useExportVariationsExcelMutation() {
+  return useMutation({
+    mutationFn: (params: Record<string, string | undefined>) =>
+      reportsService.exportVariationsExcel(params),
+    onSuccess: (data) => {
+      const today = new Date().toISOString().split('T')[0];
+      downloadExcel(data, `reporte_variaciones_${today}.xlsx`);
+      toast({
+        title: 'Reporte generado',
+        description:
+          'El reporte de variaciones en Excel fue descargado correctamente.',
       });
     },
     onError: () => {

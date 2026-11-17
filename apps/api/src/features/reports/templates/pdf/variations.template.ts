@@ -1,15 +1,27 @@
 import { Content } from 'pdfmake/interfaces';
 
+export type VariationStatus = 'INCLUSION' | 'VARIACION' | 'EXCLUSION';
+export type VariationInstrumentType = 'LOAN' | 'CREDIT';
+
 export interface VariationReportRow {
   cedula: string;
   fullname: string;
   workerType: string | null;
   payrollCode: string | null;
+  instrumentType: VariationInstrumentType;
   totalPayable: string | null;
   termUnits: number | null;
-  installmentNumber: number;
-  principalBalancePending: string | null;
+  installmentAmount: string | null;
+  status: VariationStatus;
+  pendingAmount: string | null;
+  paymentCapacity: string | null;
+  updatedQuota: number | null;
 }
+
+const INSTRUMENT_LABEL: Record<VariationInstrumentType, string> = {
+  LOAN: 'PRÉSTAMO',
+  CREDIT: 'CRÉDITO',
+};
 
 function formatAmount(value: string | null): string {
   if (!value) return 'N/A';
@@ -21,6 +33,16 @@ function formatAmount(value: string | null): string {
   });
 }
 
+function formatOptionalAmount(value: string | null): string {
+  if (value === null || value === undefined || value === '') return '';
+  return formatAmount(value);
+}
+
+function formatOptionalNumber(value: number | null): string {
+  if (value === null || value === undefined) return '';
+  return value.toString();
+}
+
 export function buildVariationsTableContent(
   data: VariationReportRow[],
 ): Content {
@@ -29,24 +51,32 @@ export function buildVariationsTableContent(
       { text: 'CÉDULA', style: 'tableHeader' },
       { text: 'NOMBRE Y APELLIDOS', style: 'tableHeader' },
       { text: 'TIPO PERSONAL', style: 'tableHeader' },
-      { text: 'TIPO PTMO', style: 'tableHeader' },
+      { text: 'TIPO PRÉSTAMO', style: 'tableHeader' },
+      { text: 'OPERACIÓN', style: 'tableHeader' },
       { text: 'MONTO PRÉSTAMO', style: 'tableHeader' },
       { text: 'CANT. CUOTAS', style: 'tableHeader' },
       { text: 'MONTO CUOTA', style: 'tableHeader' },
-      { text: '', style: 'tableHeader' },
+      { text: 'VARIACIÓN', style: 'tableHeader' },
+      { text: 'PENDIENTE', style: 'tableHeader' },
+      { text: 'CAPACIDAD', style: 'tableHeader' },
+      { text: 'CUOTA ACTUALIZADA', style: 'tableHeader' },
     ],
     ...data.map((item) => {
-      const isExclusion =
-        item.termUnits !== null && item.installmentNumber >= item.termUnits;
+      const isExclusion = item.status === 'EXCLUSION';
+
       return [
         item.cedula,
         item.fullname,
         item.workerType ?? 'N/A',
         item.payrollCode ?? 'N/A',
+        INSTRUMENT_LABEL[item.instrumentType],
         formatAmount(item.totalPayable),
-        item.termUnits?.toString() ?? 'N/A',
-        formatAmount(item.principalBalancePending),
-        isExclusion ? 'EXCLUSION' : 'INCLUSION',
+        isExclusion ? '' : (item.termUnits?.toString() ?? 'N/A'),
+        isExclusion ? '' : formatAmount(item.installmentAmount),
+        item.status,
+        isExclusion ? '' : formatOptionalAmount(item.pendingAmount),
+        isExclusion ? '' : formatOptionalAmount(item.paymentCapacity),
+        isExclusion ? '' : formatOptionalNumber(item.updatedQuota),
       ];
     }),
   ];
@@ -54,7 +84,7 @@ export function buildVariationsTableContent(
   return {
     table: {
       headerRows: 1,
-      widths: [50, '*', 55, 45, 55, 35, 55, 50],
+      widths: [42, '*', 50, 45, 50, 55, 30, 50, 50, 55, 50, 50],
       body: tableBody,
     },
     layout: 'lightHorizontalLines',

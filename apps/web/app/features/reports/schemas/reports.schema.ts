@@ -35,8 +35,6 @@ export const withdrawalReportFilterSchema = z.object({
 export type WithdrawalReportFilters = z.infer<typeof withdrawalReportFilterSchema>;
 
 export const variationReportFilterSchema = z.object({
-  dateFrom: z.string().optional(),
-  dateTo: z.string().optional(),
   format: z.enum(['pdf', 'excel']).optional().default('pdf'),
 });
 
