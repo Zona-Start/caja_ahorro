@@ -70,7 +70,10 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
     window.dispatchEvent(event);
   };
 
-  const isItemBased = data.isHouseComercial || data.isInternalInventory;
+  const isItemBased =
+    data.isHouseComercial ||
+    data.isInternalInventory ||
+    Number(data.goodsTotalAmount ?? 0) > 0;
 
   return (
     <>

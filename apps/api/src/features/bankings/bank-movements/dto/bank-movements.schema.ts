@@ -11,6 +11,7 @@ const paymentMethodEnum = z.enum([
 const categoryEnum = z.enum([
   'MEMBER_CONTRIBUTION',
   'MEMBER_WITHDRAWAL',
+  'PAYMENT_PRODUCT_WITHDRAWAL',
   'PAYROLL_SETTLEMENT',
   'LOAN_DISBURSEMENT',
   'LOAN_PAYMENT',

@@ -10,6 +10,18 @@ import {
 } from '../schemas/withdrawal-api-response';
 import { type Withdrawal } from '../schemas/withdrawal.schema';
 
+const normalizeText = (value: string | null | undefined) =>
+  (value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+
+export const isExcludedWithdrawalType = (description: string) => {
+  const normalized = normalizeText(description);
+  return normalized.includes('prestamo') && normalized.includes('haberes');
+};
+
 export const withdrawalService = {
   getAssociatesByCedula: async (cedula: string) => {
     const response = await apiClient.get(
@@ -24,9 +36,8 @@ export const withdrawalService = {
     const result = Array.isArray(raw)
       ? raw
       : (raw?.data ?? []);
-    return {
-      data: withdrawalTypeApiResponseSchema.shape.data.parse(result),
-    };
+    const data = withdrawalTypeApiResponseSchema.shape.data.parse(result);
+    return { data };
   },
 
   getWithdrawals: async (params: Record<string, any>) => {
@@ -74,6 +85,16 @@ export const withdrawalService = {
       date: withdrawal.date,
       description: withdrawal.description,
       commercialHouseId: withdrawal.commercialHouseId ?? null,
+      currencyCode: withdrawal.currencyCode,
+      exchangeRate: withdrawal.exchangeRate,
+      goodsTotalAmount: withdrawal.goodsTotalAmount,
+      receivedAmount: withdrawal.receivedAmount,
+      receivedCurrencyCode: withdrawal.receivedCurrencyCode,
+      receivedExchangeRate: withdrawal.receivedExchangeRate,
+      receivedPaymentMethod: withdrawal.receivedPaymentMethod,
+      receivedReference: withdrawal.receivedReference,
+      receivedBankAccountId: withdrawal.receivedBankAccountId,
+      receivedAt: withdrawal.receivedAt,
       allowWithActiveLoanOrCredit: withdrawal.allowWithActiveLoanOrCredit ?? false,
       allowWithPayrollCredit: withdrawal.allowWithPayrollCredit ?? false,
       allowEarlyWithdrawal: withdrawal.allowEarlyWithdrawal ?? false,

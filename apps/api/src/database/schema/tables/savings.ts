@@ -343,6 +343,36 @@ export const withdrawalsAssociates = savingsSchema.table(
       onDelete: 'set null',
     }),
     withdrawalItems: jsonb('withdrawal_items'),
+    // Valor total de los productos/servicios del retiro (en Bs).
+    goodsTotalAmount: numeric('goods_total_amount', {
+      precision: 20,
+      scale: 6,
+    }),
+    // Pago parcial recibido del asociado (transferencia/depósito) para
+    // financiar solo el saldo restante por haberes.
+    receivedAmount: numeric('received_amount', { precision: 20, scale: 6 }),
+    receivedCurrencyCode: currencyCodeEnum('received_currency_code').default(
+      'VES',
+    ),
+    receivedExchangeRate: numeric('received_exchange_rate', {
+      precision: 14,
+      scale: 6,
+    }),
+    receivedAmountBase: numeric('received_amount_base', {
+      precision: 20,
+      scale: 6,
+    }),
+    receivedPaymentMethod: paymentMethodEnum('received_payment_method'),
+    receivedReference: varchar('received_reference', { length: 100 }),
+    receivedBankAccountId: uuid('received_bank_account_id').references(
+      () => bankAccounts.id,
+      { onDelete: 'set null' },
+    ),
+    receivedAt: timestamp('received_at'),
+    receivedBankTransactionId: uuid('received_bank_transaction_id').references(
+      () => bankTransactions.id,
+      { onDelete: 'set null' },
+    ),
     // Parámetros especiales: permiten crear el retiro saltando reglas (solo con permiso approve)
     allowWithActiveLoanOrCredit: boolean('allow_with_active_loan_or_credit')
       .notNull()

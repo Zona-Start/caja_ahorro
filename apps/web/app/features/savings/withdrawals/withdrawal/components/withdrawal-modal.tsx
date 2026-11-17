@@ -1,6 +1,7 @@
 'use client';
 
 import { AlertModal } from '@/components/shared/alert-modal';
+import { useBankAccountsQuery } from '@/features/banks/bank-account/hooks/use-bank-account-query';
 import { exchangeRatesService } from '@/features/core/exchange-rates/services/exchange-rates-service';
 import { useProductsQuery } from '@/features/inventory/products/hooks/use-products-queries';
 import { type Product } from '@/features/inventory/products/schemas/products.schema';
@@ -66,6 +67,7 @@ import {
 import { type AssociatesWithdrawal } from '../schemas/individual-withdrawal-api-schema';
 import { type WithdrawalType } from '../schemas/withdrawal-api-response';
 import { PAYMENT_METHOD } from '../schemas/withdrawal-options';
+import { isExcludedWithdrawalType } from '../services/withdrawal-service';
 import {
   withdrawalSchema,
   type Withdrawal,
@@ -78,6 +80,21 @@ interface Props {
 
 const round2 = (value: number) => Number(value.toFixed(2));
 
+const normalizeText = (value: string | null | undefined) =>
+  (value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+
+const isPartialWithdrawalType = (description?: string | null) => {
+  const normalized = normalizeText(description);
+  return (
+    normalized.includes('retiros parciales') ||
+    (normalized.includes('parcial') && normalized.includes('rcv'))
+  );
+};
+
 const WITHDRAWAL_DEFAULTS: Withdrawal = {
   associateAccountId: '',
   withdrawalTypeId: '',
@@ -86,6 +103,16 @@ const WITHDRAWAL_DEFAULTS: Withdrawal = {
   date: new Date(),
   description: '',
   commercialHouseId: null,
+  currencyCode: 'VES',
+  exchangeRate: 1,
+  goodsTotalAmount: 0,
+  receivedAmount: 0,
+  receivedCurrencyCode: 'VES',
+  receivedExchangeRate: 1,
+  receivedPaymentMethod: 'BANK_TRANSFER',
+  receivedReference: '',
+  receivedBankAccountId: '',
+  receivedAt: new Date(),
   allowWithActiveLoanOrCredit: false,
   allowWithPayrollCredit: false,
   allowEarlyWithdrawal: false,
@@ -94,7 +121,7 @@ const WITHDRAWAL_DEFAULTS: Withdrawal = {
 };
 
 interface ItemLine {
-  type: 'product' | 'service';
+  type: 'product' | 'service' | 'manual';
   productId?: string;
   productName?: string;
   unitCost?: number;
@@ -104,7 +131,7 @@ interface ItemLine {
   cost?: number;
   subtotal?: number;
   specialDayCategoryId?: string;
-  // Precio de venta de referencia (divisa o VES) y tasa del día aplicada.
+  // Precio original en la moneda de la sesión y tasa aplicada.
   unitPrice?: number;
   currencyCode?: string;
   exchangeRate?: number;
@@ -125,6 +152,7 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
   const [supplierId, setSupplierId] = useState('');
   const [showProductSearch, setShowProductSearch] = useState(false);
   const [productSearchQuery, setProductSearchQuery] = useState('');
+  const [enablePartialPayment, setEnablePartialPayment] = useState(false);
 
   const {
     data: associateResp,
@@ -137,11 +165,18 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
   const associate = associateResp as AssociatesWithdrawal | null | undefined;
 
   const { data: typesResp } = useWithdrawalTypesQuery();
-  const withdrawalTypes = typesResp?.data ?? [];
+  const withdrawalTypes = (typesResp?.data ?? []).filter(
+    (type) => !isExcludedWithdrawalType(type.description),
+  );
   const { data: suppliers } = useSuppliersAllQuery(open);
   const { data: productsData } = useProductsQuery({ page: 1, limit: 200 });
   const products: Product[] =
     (productsData?.data as Product[] | undefined) ?? [];
+  const { data: bankAccountsResponse } = useBankAccountsQuery({
+    page: 1,
+    limit: 500,
+  });
+  const bankAccounts = bankAccountsResponse?.data ?? [];
 
   const servicesCategory = CATEGORY_OPTIONS.find(
     (c) => c.label === 'Servicios',
@@ -168,6 +203,33 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
   });
   const watchAmount =
     useWatch({ control: form.control, name: 'requestedAmount' }) || 0;
+  const watchCurrency =
+    useWatch({ control: form.control, name: 'currencyCode' }) || 'VES';
+  const watchExchangeRate =
+    useWatch({ control: form.control, name: 'exchangeRate' }) || 0;
+  const watchReceivedAmount =
+    useWatch({ control: form.control, name: 'receivedAmount' }) || 0;
+  const watchReceivedBankAccountId =
+    useWatch({ control: form.control, name: 'receivedBankAccountId' }) || '';
+  const watchReceivedPaymentMethod =
+    useWatch({ control: form.control, name: 'receivedPaymentMethod' }) ||
+    'BANK_TRANSFER';
+  const watchReceivedReference =
+    useWatch({ control: form.control, name: 'receivedReference' }) || '';
+  const watchReceivedAt = useWatch({
+    control: form.control,
+    name: 'receivedAt',
+  });
+  const receivedBankAccounts = useMemo(
+    () =>
+      (bankAccounts as any[]).filter(
+        (account) =>
+          account.isActive !== false &&
+          (account.currencyCode === watchCurrency ||
+            account.currencyCode === 'VES'),
+      ),
+    [bankAccounts, watchCurrency],
+  );
   const allowWithActiveLoanOrCredit =
     useWatch({ control: form.control, name: 'allowWithActiveLoanOrCredit' }) ??
     false;
@@ -183,8 +245,15 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
   const selectedType = withdrawalTypes.find((t) => t.id === watchTypeId) as
     WithdrawalType | undefined;
 
-  const hasAutoAmount =
-    selectedType?.isInternalInventory || selectedType?.isHouseComercial;
+  const isPartialWithdrawal = isPartialWithdrawalType(
+    selectedType?.description,
+  );
+  const isGoodsWithdrawal = !!selectedType && !isPartialWithdrawal;
+  const isManualGoods =
+    isGoodsWithdrawal &&
+    !selectedType?.isInternalInventory &&
+    !selectedType?.isHouseComercial;
+  const hasAutoAmount = isGoodsWithdrawal;
 
   const itemsTotal = useMemo(
     () =>
@@ -197,11 +266,18 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
     [items],
   );
 
-  const effectiveAmount = hasAutoAmount ? itemsTotal : watchAmount || 0;
+  const sessionRate =
+    watchCurrency !== 'VES' ? watchExchangeRate || 0 : 1;
+  const receivedBase = round2(
+    (Number(watchReceivedAmount) || 0) * sessionRate,
+  );
+  const effectiveAmount = isGoodsWithdrawal
+    ? Math.max(0, round2(itemsTotal - receivedBase))
+    : watchAmount || 0;
 
   const feePct = Number(selectedType?.administrativeFeePercentage ?? 0);
   const fee = (effectiveAmount * feePct) / 100;
-  const disbursed = hasAutoAmount
+  const disbursed = isGoodsWithdrawal
     ? effectiveAmount + fee
     : effectiveAmount - fee;
 
@@ -323,20 +399,118 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
       r.canSave = false;
       r.messages.push({ text: 'Seleccione una casa comercial', ok: false });
     }
-    if (selectedType?.isHouseComercial && supplierId && items.length === 0) {
+    if (
+      selectedType?.isHouseComercial &&
+      supplierId &&
+      items.length === 0
+    ) {
+      r.canSave = false;
       r.messages.push({ text: 'Agregue al menos un item', ok: false });
     }
+
+    if (isGoodsWithdrawal && items.length === 0) {
+      r.canSave = false;
+      r.messages.push({
+        text: 'Agregue al menos un producto o servicio',
+        ok: false,
+      });
+    }
+
+    if (
+      isGoodsWithdrawal &&
+      watchCurrency !== 'VES' &&
+      !(watchExchangeRate > 0)
+    ) {
+      r.canSave = false;
+      r.messages.push({
+        text: 'Indique la tasa de cambio de la moneda del retiro',
+        ok: false,
+      });
+    }
+
+    if (isGoodsWithdrawal && watchReceivedAmount > 0) {
+      if (!watchReceivedBankAccountId) {
+        r.canSave = false;
+        r.messages.push({
+          text: 'Seleccione la cuenta bancaria donde se recibió el pago',
+          ok: false,
+        });
+      }
+      if (!watchReceivedPaymentMethod) {
+        r.canSave = false;
+        r.messages.push({
+          text: 'Seleccione el método del pago recibido',
+          ok: false,
+        });
+      }
+      if (!watchReceivedReference.trim()) {
+        r.canSave = false;
+        r.messages.push({
+          text: 'Indique la referencia del pago recibido',
+          ok: false,
+        });
+      }
+      if (receivedBase >= itemsTotal) {
+        r.canSave = false;
+        r.messages.push({
+          text: 'El pago recibido debe ser menor al total de los productos',
+          ok: false,
+        });
+      }
+      const selectedAccount = (bankAccounts as any[]).find(
+        (account) => account.id === watchReceivedBankAccountId,
+      );
+      if (
+        selectedAccount &&
+        selectedAccount.currencyCode !== watchCurrency &&
+        selectedAccount.currencyCode !== 'VES'
+      ) {
+        r.canSave = false;
+        r.messages.push({
+          text: 'La cuenta bancaria debe estar en la moneda del retiro o en bolívares',
+          ok: false,
+        });
+      }
+    } else if (
+      isGoodsWithdrawal &&
+      (watchReceivedBankAccountId || watchReceivedReference.trim())
+    ) {
+      r.canSave = false;
+      r.messages.push({
+        text: 'Indique el monto del pago parcial recibido',
+        ok: false,
+      });
+    }
+
+    if (isGoodsWithdrawal && effectiveAmount <= 0) {
+      r.canSave = false;
+      r.messages.push({
+        text: 'El monto financiado por haberes debe ser mayor a cero',
+        ok: false,
+      });
+    }
+
     return r;
   }, [
     associate,
     effectiveAmount,
     selectedType,
     items,
+    itemsTotal,
     supplierId,
     allowWithActiveLoanOrCredit,
     allowWithPayrollCredit,
     allowEarlyWithdrawal,
     allowExceedAvailableBalance,
+    isGoodsWithdrawal,
+    watchCurrency,
+    watchExchangeRate,
+    watchReceivedAmount,
+    watchReceivedBankAccountId,
+    watchReceivedPaymentMethod,
+    watchReceivedReference,
+    receivedBase,
+    bankAccounts,
   ]);
 
   const timeRuleBlocked = useMemo(() => {
@@ -353,6 +527,89 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
   // el permiso específico y haya un asociado seleccionado.
   const showSpecialParams =
     canUseSpecialParams && !!associate?.associateAccountId;
+
+  // Tasa de cambio de la sesión: se carga la del día y queda editable.
+  useEffect(() => {
+    if (watchCurrency === 'VES') {
+      form.setValue('exchangeRate', 1);
+      return;
+    }
+
+    form.setValue('exchangeRate', 0);
+    let cancelled = false;
+    exchangeRatesService
+      .getLatest(watchCurrency)
+      .then((res) => {
+        if (cancelled) return;
+        const rate = Number(res?.rate);
+        if (Number.isFinite(rate) && rate > 0) {
+          form.setValue('exchangeRate', rate);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [watchCurrency, form]);
+
+  // Revaloriza los productos/servicios cuando cambia la moneda o la tasa.
+  useEffect(() => {
+    if (items.length === 0) return;
+
+    const sessionCurrencyRate =
+      watchCurrency !== 'VES' ? watchExchangeRate || 0 : 1;
+
+    setItems((prev) =>
+      prev.map((item) => {
+        const itemCurrency = item.currencyCode ?? watchCurrency;
+        let itemRate = 1;
+
+        if (itemCurrency !== 'VES') {
+          itemRate =
+            itemCurrency === watchCurrency && sessionCurrencyRate > 0
+              ? sessionCurrencyRate
+              : item.exchangeRate || 1;
+        }
+
+        const unitBase = round2(
+          Number(item.unitPrice ?? item.cost ?? 0) * itemRate,
+        );
+
+        if (item.type === 'product') {
+          return {
+            ...item,
+            exchangeRate: itemRate,
+            unitCost: unitBase,
+            totalCost: round2(unitBase * (Number(item.quantity) || 0)),
+          };
+        }
+
+        return {
+          ...item,
+          exchangeRate: itemRate,
+          cost: unitBase,
+          subtotal: round2(unitBase * (Number(item.quantity) || 0)),
+        };
+      }),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchCurrency, watchExchangeRate]);
+
+  // Si cambia la moneda de la sesión, limpia una cuenta bancaria incompatible.
+  useEffect(() => {
+    if (!watchReceivedBankAccountId) return;
+    const selectedAccount = (bankAccounts as any[]).find(
+      (account) => account.id === watchReceivedBankAccountId,
+    );
+    if (
+      selectedAccount &&
+      selectedAccount.currencyCode !== watchCurrency &&
+      selectedAccount.currencyCode !== 'VES'
+    ) {
+      form.setValue('receivedBankAccountId', '');
+    }
+  }, [watchCurrency, watchReceivedBankAccountId, bankAccounts, form]);
 
   useEffect(() => {
     if (shouldFetch && !searching) {
@@ -396,6 +653,7 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
     });
     setItems([]);
     setSupplierId('');
+    setEnablePartialPayment(false);
     form.reset(WITHDRAWAL_DEFAULTS);
     setSubmittedSearch(trimmed);
     setShouldFetch(true);
@@ -408,73 +666,163 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
     setSupplierId('');
     setShowProductSearch(false);
     setProductSearchQuery('');
+    setEnablePartialPayment(false);
     form.reset(WITHDRAWAL_DEFAULTS);
     queryClient.removeQueries({
       queryKey: [...QUERY_KEYS.withdrawals.all, 'request'],
     });
   }, [queryClient, form]);
 
-  const addProductItem = useCallback(async (productId: string) => {
-    const p = await ProductsService.getById(productId);
-    // El precio de venta está fijado en divisa; el monto en Bs se calcula a la
-    // tasa del día de la operación.
-    const currency = (p.currencyCode ?? 'VES') as 'VES' | 'USD' | 'EUR';
-    const saleReference = p.salePrice ?? p.bsPriceAmount ?? p.supplierCost ?? 0;
-    let factor = 1;
-    if (currency !== 'VES') {
-      try {
-        const latest = await exchangeRatesService.getLatest(currency);
-        const rate = Number(latest.rate);
-        if (Number.isFinite(rate) && rate > 0) factor = rate;
-      } catch {
-        factor = 1;
+  const handlePartialPaymentToggle = useCallback(
+    (enabled: boolean) => {
+      setEnablePartialPayment(enabled);
+
+      if (!enabled) {
+        form.setValue('receivedAmount', 0);
+        form.setValue('receivedReference', '');
+        form.setValue('receivedBankAccountId', '');
+        form.setValue('receivedPaymentMethod', 'BANK_TRANSFER');
+        form.setValue('receivedAt', form.getValues('date'));
       }
-    }
-    const unitCost = +(saleReference * factor).toFixed(2);
+    },
+    [form],
+  );
+
+  const addProductItem = useCallback(
+    async (productId: string) => {
+      const p = await ProductsService.getById(productId);
+      // El producto trae su propio precio/moneda. La sesión usa una sola
+      // moneda y una sola tasa para todos los ítems.
+      const productCurrency = (p.currencyCode ?? 'VES') as
+        | 'VES'
+        | 'USD'
+        | 'EUR';
+      const saleReference =
+        p.salePrice ?? p.bsPriceAmount ?? p.supplierCost ?? 0;
+
+      let sessionCurrency = watchCurrency as 'VES' | 'USD' | 'EUR';
+      let factor = 1;
+
+      if (productCurrency !== 'VES') {
+        if (sessionCurrency !== 'VES' && sessionCurrency !== productCurrency) {
+          toast.error({
+            title: 'Moneda incompatible',
+            description: `El producto está en ${productCurrency} y la sesión está en ${sessionCurrency}. Use una sola moneda para todos los productos.`,
+          });
+          return;
+        }
+
+        if (sessionCurrency === 'VES') {
+          sessionCurrency = productCurrency;
+          form.setValue('currencyCode', productCurrency);
+        }
+
+        if (
+          productCurrency === sessionCurrency &&
+          watchExchangeRate > 0
+        ) {
+          factor = watchExchangeRate;
+        } else {
+          try {
+            const latest = await exchangeRatesService.getLatest(
+              productCurrency,
+            );
+            const rate = Number(latest.rate);
+            if (Number.isFinite(rate) && rate > 0) {
+              factor = rate;
+              form.setValue('exchangeRate', rate);
+            }
+          } catch {
+            factor = 1;
+          }
+        }
+      }
+
+      const unitCost = round2(Number(saleReference) * factor);
+
+      setItems((prev) => [
+        ...prev,
+        {
+          type: 'product',
+          productId,
+          productName: p.name,
+          unitPrice: Number(saleReference),
+          currencyCode: productCurrency,
+          exchangeRate: factor,
+          unitCost,
+          quantity: 1,
+          totalCost: unitCost,
+        },
+      ]);
+    },
+    [watchCurrency, watchExchangeRate, form, toast],
+  );
+
+  const addServiceItem = useCallback(() => {
+    const rate = watchCurrency !== 'VES' ? watchExchangeRate || 0 : 1;
     setItems((prev) => [
       ...prev,
       {
-        type: 'product',
-        productId,
-        productName: p.name,
-        unitPrice: saleReference,
-        currencyCode: currency,
-        exchangeRate: factor,
-        unitCost,
+        type: 'service',
+        description: '',
         quantity: 1,
-        totalCost: unitCost,
+        unitPrice: 0,
+        currencyCode: watchCurrency,
+        exchangeRate: rate,
+        cost: 0,
+        subtotal: 0,
       },
     ]);
-  }, []);
-
-  const addServiceItem = useCallback(() => {
-    setItems((prev) => [
-      ...prev,
-      { type: 'service', description: '', quantity: 1, cost: 0, subtotal: 0 },
-    ]);
-  }, []);
+  }, [watchCurrency, watchExchangeRate]);
 
   const updateItem = useCallback((index: number, field: string, value: any) => {
     setItems((prev) => {
       const updated = [...prev];
       const item = { ...updated[index] } as any;
       item[field] = value;
+
       if (item.type === 'product') {
-        // Al cambiar el precio en divisa se recalcula el monto en Bs a la tasa
-        // del día; el subtotal siempre = cantidad × precio en Bs.
-        if (field === 'unitPrice')
-          item.unitCost = +(
-            (item.unitPrice || 0) * (item.exchangeRate || 1)
-          ).toFixed(2);
+        if (
+          field === 'unitPrice' ||
+          field === 'exchangeRate'
+        ) {
+          item.unitCost = round2(
+            Number(item.unitPrice || 0) * Number(item.exchangeRate || 1),
+          );
+        }
         if (
           field === 'quantity' ||
           field === 'unitCost' ||
-          field === 'unitPrice'
-        )
-          item.totalCost = (item.quantity || 0) * (item.unitCost || 0);
+          field === 'unitPrice' ||
+          field === 'exchangeRate'
+        ) {
+          item.totalCost = round2(
+            Number(item.quantity || 0) * Number(item.unitCost || 0),
+          );
+        }
       }
-      if (item.type === 'service' && (field === 'quantity' || field === 'cost'))
-        item.subtotal = (item.quantity || 0) * (item.cost || 0);
+
+      if (item.type === 'service') {
+        if (
+          field === 'unitPrice' ||
+          field === 'exchangeRate'
+        ) {
+          item.cost = round2(
+            Number(item.unitPrice || 0) * Number(item.exchangeRate || 1),
+          );
+        }
+        if (
+          field === 'quantity' ||
+          field === 'cost' ||
+          field === 'unitPrice' ||
+          field === 'exchangeRate'
+        ) {
+          item.subtotal = round2(
+            Number(item.quantity || 0) * Number(item.cost || 0),
+          );
+        }
+      }
+
       updated[index] = item;
       return updated;
     });
@@ -488,29 +836,46 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
     if (!associate?.associateAccountId || !selectedType) return;
 
     let withdrawalItems: any[] = [];
-    if (selectedType.isInternalInventory) {
-      withdrawalItems = items
-        .filter((i) => i.type === 'product')
-        .map((i) => ({
-          itemType: 'PRODUCT',
-          itemId: i.productId,
-          itemDescription: i.productName ?? null,
-          quantity: i.quantity,
-          agreedSellingPrice: i.unitCost,
-          days: null,
-        }));
-    } else if (selectedType.isHouseComercial) {
-      withdrawalItems = items
-        .filter((i) => i.type === 'service')
-        .map((i) => ({
-          itemType: 'EXTERNAL',
-          itemId: null,
-          itemDescription: i.description,
-          quantity: i.quantity,
-          agreedSellingPrice: i.cost,
-          days: i.specialDayCategoryId || null,
-        }));
+    if (isGoodsWithdrawal) {
+      if (selectedType.isInternalInventory) {
+        withdrawalItems = items
+          .filter((i) => i.type === 'product')
+          .map((i) => ({
+            itemType: 'PRODUCT',
+            itemId: i.productId,
+            itemDescription: i.productName ?? null,
+            quantity: i.quantity,
+            agreedSellingPrice: i.unitCost,
+            days: null,
+            currencyCode: i.currencyCode,
+            exchangeRate: i.exchangeRate,
+            originalUnitPrice: i.unitPrice,
+            unitPriceBase: i.unitCost,
+            totalBase: i.totalCost,
+          }));
+      } else {
+        withdrawalItems = items
+          .filter((i) => i.type === 'service')
+          .map((i) => ({
+            itemType: 'EXTERNAL',
+            itemId: null,
+            itemDescription: i.description,
+            quantity: i.quantity,
+            agreedSellingPrice: i.cost,
+            days: i.specialDayCategoryId || null,
+            currencyCode: i.currencyCode,
+            exchangeRate: i.exchangeRate,
+            originalUnitPrice: i.unitPrice,
+            unitPriceBase: i.cost,
+            totalBase: i.subtotal,
+          }));
+      }
     }
+
+    const receivedAmount = isGoodsWithdrawal
+      ? Number(watchReceivedAmount) || 0
+      : 0;
+    const hasReceivedPayment = receivedAmount > 0;
 
     const payload: Withdrawal = {
       ...data,
@@ -518,8 +883,30 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
       withdrawalTypeId: selectedType.id,
       requestedAmount: effectiveAmount,
       paymentMethod: hasAutoAmount ? 'BANK_TRANSFER' : data.paymentMethod,
-      commercialHouseId: supplierId || null,
-      withdrawalItems: withdrawalItems.length > 0 ? withdrawalItems : undefined,
+      commercialHouseId:
+        isGoodsWithdrawal && selectedType.isHouseComercial
+          ? supplierId || null
+          : null,
+      currencyCode: isGoodsWithdrawal ? watchCurrency : 'VES',
+      exchangeRate: isGoodsWithdrawal ? sessionRate : 1,
+      goodsTotalAmount: isGoodsWithdrawal ? itemsTotal : undefined,
+      withdrawalItems:
+        withdrawalItems.length > 0 ? withdrawalItems : undefined,
+      receivedAmount: hasReceivedPayment ? receivedAmount : undefined,
+      receivedCurrencyCode: hasReceivedPayment ? watchCurrency : undefined,
+      receivedExchangeRate: hasReceivedPayment ? sessionRate : undefined,
+      receivedPaymentMethod: hasReceivedPayment
+        ? watchReceivedPaymentMethod
+        : undefined,
+      receivedReference: hasReceivedPayment
+        ? watchReceivedReference
+        : undefined,
+      receivedBankAccountId: hasReceivedPayment
+        ? watchReceivedBankAccountId
+        : undefined,
+      receivedAt: hasReceivedPayment
+        ? (watchReceivedAt ?? data.date)
+        : undefined,
     };
 
     saveWithdrawal(payload, {
@@ -882,6 +1269,74 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
                   </div>
                 )}
 
+                {/* MONEDA Y TASA DE LA SESIÓN */}
+                {isGoodsWithdrawal && (
+                  <div className="rounded-lg border p-4 bg-muted/30 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Wallet className="h-4 w-4" />
+                      <span className="text-sm font-semibold uppercase text-muted-foreground">
+                        Moneda y Tasa del Retiro
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-xs text-muted-foreground">
+                          Moneda *
+                        </span>
+                        <Select
+                          value={watchCurrency}
+                          onValueChange={(value) => {
+                            form.setValue(
+                              'currencyCode',
+                              value as 'VES' | 'USD' | 'EUR',
+                            );
+                            form.setValue('receivedBankAccountId', '');
+                          }}
+                          disabled={saving}
+                        >
+                          <SelectTrigger className="mt-1">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="VES">
+                              Bolívares (VES)
+                            </SelectItem>
+                            <SelectItem value="USD">
+                              Dólares (USD)
+                            </SelectItem>
+                            <SelectItem value="EUR">Euros (EUR)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {watchCurrency !== 'VES' && (
+                        <div>
+                          <span className="text-xs text-muted-foreground">
+                            Tasa de Cambio ({watchCurrency}) *
+                          </span>
+                          <Input
+                            type="number"
+                            step="0.0001"
+                            min="0"
+                            className="mt-1"
+                            value={watchExchangeRate || ''}
+                            onChange={(e) =>
+                              form.setValue(
+                                'exchangeRate',
+                                Number(e.target.value) || 0,
+                              )
+                            }
+                            disabled={saving}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Esta moneda y tasa se aplican a todos los productos y al
+                      pago parcial recibido.
+                    </p>
+                  </div>
+                )}
+
                 {/* INVENTORY PRODUCTS */}
                 {selectedType?.isInternalInventory && (
                   <div className="rounded-lg border p-4 bg-muted/30 space-y-3">
@@ -1026,38 +1481,42 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
                   </div>
                 )}
 
-                {/* COMMERCIAL HOUSE */}
-                {selectedType?.isHouseComercial && (
+                {/* CASA COMERCIAL / ITEMS MANUALES */}
+                {(selectedType?.isHouseComercial || isManualGoods) && (
                   <div className="rounded-lg border p-4 bg-muted/30 space-y-3">
                     <div className="flex items-center gap-2">
                       <Building2 className="h-4 w-4" />
                       <span className="text-sm font-semibold uppercase text-muted-foreground">
-                        Casa Comercial
+                        {selectedType?.isHouseComercial
+                          ? 'Casa Comercial'
+                          : 'Productos / Servicios'}
                       </span>
                     </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">
-                        Proveedor *
-                      </span>
-                      <select
-                        value={supplierId}
-                        onChange={(e) => setSupplierId(e.target.value)}
-                        className="w-full h-9 rounded-md border bg-background px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#3098F2] mt-1"
-                      >
-                        <option value="">Seleccionar proveedor...</option>
-                        {serviceSuppliers.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.name}
-                          </option>
-                        ))}
-                      </select>
-                      {serviceSuppliers.length === 0 && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          No hay proveedores de servicios registrados.
-                        </p>
-                      )}
-                    </div>
-                    {supplierId && (
+                    {selectedType?.isHouseComercial && (
+                      <div>
+                        <span className="text-xs text-muted-foreground">
+                          Proveedor *
+                        </span>
+                        <select
+                          value={supplierId}
+                          onChange={(e) => setSupplierId(e.target.value)}
+                          className="w-full h-9 rounded-md border bg-background px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#3098F2] mt-1"
+                        >
+                          <option value="">Seleccionar proveedor...</option>
+                          {serviceSuppliers.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.name}
+                            </option>
+                          ))}
+                        </select>
+                        {serviceSuppliers.length === 0 && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            No hay proveedores de servicios registrados.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    {(!selectedType?.isHouseComercial || supplierId) && (
                       <div className="space-y-2">
                         <div className="flex justify-end">
                           <Button
@@ -1112,15 +1571,16 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
                                   className="h-8 text-xs"
                                 />
                               </div>
-                              <div className="w-24">
+                              <div className="w-28">
                                 <span className="text-xs text-muted-foreground">
-                                  Costo
+                                  Precio ({watchCurrency})
                                 </span>
                                 <Input
                                   type="text"
+                                  inputMode="decimal"
                                   value={
-                                    item.cost && item.cost > 0
-                                      ? String(item.cost)
+                                    item.unitPrice && item.unitPrice > 0
+                                      ? String(item.unitPrice)
                                       : ''
                                   }
                                   onChange={(e) => {
@@ -1131,11 +1591,21 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
                                     const num = cleaned
                                       ? parseFloat(cleaned)
                                       : 0;
-                                    updateItem(idx, 'cost', num);
+                                    updateItem(idx, 'unitPrice', num);
                                   }}
                                   className="h-8 text-xs font-mono"
                                   placeholder="0,00"
                                 />
+                              </div>
+                              <div className="w-24">
+                                <span className="text-xs text-muted-foreground">
+                                  Precio Bs.
+                                </span>
+                                <div className="h-8 flex items-center text-xs font-mono">
+                                  {item.cost?.toLocaleString('es', {
+                                    minimumFractionDigits: 2,
+                                  })}
+                                </div>
                               </div>
                               <div className="w-24 text-right">
                                 <span className="text-xs text-muted-foreground">
@@ -1161,6 +1631,155 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
                   </div>
                 )}
 
+                {/* PAGO PARCIAL RECIBIDO */}
+                {isGoodsWithdrawal && (
+                  <div className="rounded-lg border p-4 bg-muted/30 space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <Wallet className="h-4 w-4" />
+                        <span className="text-sm font-semibold uppercase text-muted-foreground">
+                          Pago Parcial Recibido
+                        </span>
+                      </div>
+                      <Switch
+                        checked={enablePartialPayment}
+                        onCheckedChange={handlePartialPaymentToggle}
+                        disabled={saving}
+                      />
+                    </div>
+                    {enablePartialPayment && (
+                      <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <span className="text-xs text-muted-foreground">
+                          Monto recibido ({watchCurrency})
+                        </span>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          className="mt-1"
+                          value={watchReceivedAmount || ''}
+                          onChange={(e) =>
+                            form.setValue(
+                              'receivedAmount',
+                              Number(e.target.value) || 0,
+                            )
+                          }
+                          disabled={saving}
+                        />
+                        {watchReceivedAmount > 0 && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Equivalente: {formatCurrency(receivedBase, 'VES')}
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <span className="text-xs text-muted-foreground">
+                          Método de pago
+                        </span>
+                        <Select
+                          value={watchReceivedPaymentMethod}
+                          onValueChange={(value) =>
+                            form.setValue(
+                              'receivedPaymentMethod',
+                              value as any,
+                            )
+                          }
+                          disabled={saving}
+                        >
+                          <SelectTrigger className="mt-1">
+                            <SelectValue placeholder="Método" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(PAYMENT_METHOD).map(([k, v]) => (
+                              <SelectItem key={k} value={k}>
+                                {v}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <span className="text-xs text-muted-foreground">
+                          Referencia
+                        </span>
+                        <Input
+                          className="mt-1"
+                          value={watchReceivedReference}
+                          onChange={(e) =>
+                            form.setValue(
+                              'receivedReference',
+                              e.target.value,
+                            )
+                          }
+                          placeholder="Nro. referencia / comprobante"
+                          disabled={saving}
+                        />
+                      </div>
+                      <div>
+                        <span className="text-xs text-muted-foreground">
+                          Cuenta bancaria receptora
+                        </span>
+                        <Select
+                          value={watchReceivedBankAccountId}
+                          onValueChange={(value) =>
+                            form.setValue('receivedBankAccountId', value)
+                          }
+                          disabled={
+                            saving || receivedBankAccounts.length === 0
+                          }
+                        >
+                          <SelectTrigger className="mt-1">
+                            <SelectValue
+                              placeholder={
+                                receivedBankAccounts.length > 0
+                                  ? 'Seleccionar cuenta...'
+                                  : `Sin cuentas en ${watchCurrency}`
+                              }
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {receivedBankAccounts.map((account: any) => (
+                              <SelectItem
+                                key={account.id}
+                                value={account.id}
+                              >
+                                {account.accountName ||
+                                  `Cuenta ${account.accountNumber}`}{' '}
+                                - {account.accountNumber} ({account.currencyCode})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <span className="text-xs text-muted-foreground">
+                          Fecha del pago
+                        </span>
+                        <CustomCalendar
+                          className="mt-1"
+                          value={
+                            watchReceivedAt
+                              ? new Date(watchReceivedAt)
+                              : null
+                          }
+                          onChange={(date) => {
+                            if (date) form.setValue('receivedAt', date);
+                          }}
+                          disabled={saving}
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      El saldo restante se descuenta automáticamente de los
+                      haberes.
+                    </p>
+                      </>
+                    )}
+                  </div>
+                )}
+
                 {/* PARAMETERS */}
                 <div className="rounded-lg border p-4 bg-muted/30 space-y-3">
                   <div className="flex items-center gap-2">
@@ -1172,7 +1791,7 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <span className="text-xs text-muted-foreground">
-                        Monto *
+                        {isGoodsWithdrawal ? 'Monto a retirar *' : 'Monto *'}
                       </span>
                       {hasAutoAmount ? (
                         <div className="h-9 flex items-center px-3 rounded-md border bg-background text-sm font-mono mt-1">
@@ -1248,6 +1867,28 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
                         </FormItem>
                       )}
                     />
+                  )}
+                  {isGoodsWithdrawal && (
+                    <div className="rounded-md border bg-background p-3 text-sm space-y-1">
+                      <div className="flex justify-between">
+                        <span>Total productos:</span>
+                        <span className="font-mono">
+                          {formatCurrency(itemsTotal, 'VES')}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Pago recibido:</span>
+                        <span className="font-mono">
+                          {formatCurrency(receivedBase, 'VES')}
+                        </span>
+                      </div>
+                      <div className="flex justify-between font-semibold">
+                        <span>Monto a retirar:</span>
+                        <span className="font-mono">
+                          {formatCurrency(effectiveAmount, 'VES')}
+                        </span>
+                      </div>
+                    </div>
                   )}
                   {effectiveAmount > 0 && selectedType && (
                     <div className="text-sm text-muted-foreground">

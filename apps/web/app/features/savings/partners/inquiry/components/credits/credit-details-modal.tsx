@@ -336,15 +336,18 @@ export function CreditDetailsModal({
                       <TableRow>
                         <TableHead>Item / Producto</TableHead>
                         <TableHead className="w-16 text-center">Cant.</TableHead>
-                        <TableHead className="text-right">Precio</TableHead>
-                        <TableHead className="text-right">Subtotal</TableHead>
+                        <TableHead className="text-right">Precio Unit.</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {data.items.map((item, idx) => {
                         const qty = Number(item.quantity || 1);
-                        const price = Number(item.agreedSellingPrice || 0);
-                        const subtotal = qty * price;
+                        // En los créditos, agreedSellingPrice almacena el total
+                        // de la línea. El precio unitario se obtiene dividiendo
+                        // ese total entre la cantidad.
+                        const total = Number(item.agreedSellingPrice || 0);
+                        const price = qty > 0 ? total / qty : total;
                         const displayName =
                           item.productName ||
                           item.itemDescription ||
@@ -374,7 +377,7 @@ export function CreditDetailsModal({
                               {money(price)}
                             </TableCell>
                             <TableCell className="text-right font-mono text-xs font-semibold">
-                              {money(subtotal)}
+                              {money(total)}
                             </TableCell>
                           </TableRow>
                         );

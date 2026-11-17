@@ -198,11 +198,10 @@ export function CreditForm({
   );
 
   useEffect(() => {
-    if (casaComercial && totalItemAmount > 0) {
-      // Los items se valoran en Bs; el crédito se expresa en su moneda.
-      const fx = watchCurrency !== 'VES' ? watchExchangeRate || 1 : 1;
-      setValue('requestedAmount', +(totalItemAmount / fx).toFixed(2));
-    }
+    if (!casaComercial) return;
+    // Los items se valoran en Bs; el crédito se expresa en su moneda.
+    const fx = watchCurrency !== 'VES' ? watchExchangeRate || 1 : 1;
+    setValue('requestedAmount', +(totalItemAmount / fx).toFixed(2));
   }, [
     totalItemAmount,
     casaComercial,
@@ -210,6 +209,39 @@ export function CreditForm({
     watchExchangeRate,
     setValue,
   ]);
+
+  // Revaloriza los items cuando cambia la tasa o la moneda del crédito.
+  // Los productos en VES no se convierten; los productos en divisa usan la
+  // tasa seleccionada en el crédito cuando coincide con su moneda.
+  useEffect(() => {
+    if (items.length === 0) return;
+
+    const creditRate = watchCurrency !== 'VES' ? watchExchangeRate || 0 : 1;
+
+    setItems((prev) =>
+      prev.map((it) => {
+        const itemCurrency = it.currencyCode ?? watchCurrency;
+        let rate = 1;
+
+        if (itemCurrency !== 'VES') {
+          rate =
+            itemCurrency === watchCurrency && creditRate > 0
+              ? creditRate
+              : it.exchangeRate || 1;
+        }
+
+        const unitPriceBs = +(Number(it.unitPrice ?? 0) * rate).toFixed(2);
+
+        return {
+          ...it,
+          exchangeRate: rate,
+          unitPriceBs,
+          totalPrice: +(unitPriceBs * (Number(it.quantity) || 0)).toFixed(2),
+        };
+      }),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchCurrency, watchExchangeRate]);
 
   const handleTypeChange = useCallback(
     (typeId: string) => {
@@ -417,8 +449,10 @@ export function CreditForm({
 
     try {
       const productDetail = await ProductsService.getById(selectedProduct);
-      // El precio de venta está fijado en divisa; el monto en Bs se calcula a la
-      // tasa del día de la venta.
+      // El precio del producto está expresado en su propia moneda. Si es
+      // divisa, se convierte a Bs con la tasa seleccionada en el crédito
+      // cuando coincide con la moneda del producto; si no, se usa la tasa
+      // del día de esa divisa.
       const currency = (productDetail.currencyCode ?? 'VES') as
         'VES' | 'USD' | 'EUR';
       const saleReference = Number(
@@ -429,12 +463,16 @@ export function CreditForm({
       );
       let factor = 1;
       if (currency !== 'VES') {
-        try {
-          const latest = await exchangeRatesService.getLatest(currency);
-          const rate = Number(latest.rate);
-          if (Number.isFinite(rate) && rate > 0) factor = rate;
-        } catch {
-          factor = 1;
+        if (currency === watchCurrency && watchExchangeRate > 0) {
+          factor = watchExchangeRate;
+        } else {
+          try {
+            const latest = await exchangeRatesService.getLatest(currency);
+            const rate = Number(latest.rate);
+            if (Number.isFinite(rate) && rate > 0) factor = rate;
+          } catch {
+            factor = 1;
+          }
         }
       }
       const unitPriceBs = +(saleReference * factor).toFixed(2);
@@ -474,14 +512,14 @@ export function CreditForm({
     setProductQty(1);
   };
 
-  // Permite modificar el precio de venta en divisa y recalcula el monto en Bs
-  // con la tasa del día.
+  // Permite modificar el precio unitario y recalcula el monto en Bs con la
+  // tasa del item (la del crédito cuando la moneda coincide).
   const updateItemPrice = (id: string, value: number) => {
     setItems((prev) =>
       prev.map((it) => {
         if (it.id !== id) return it;
         const rate = it.exchangeRate || 1;
-        const isForeign = it.type === 'product' && it.currencyCode !== 'VES';
+        const isForeign = !!it.currencyCode && it.currencyCode !== 'VES';
         const unitPriceBs = isForeign ? +(value * rate).toFixed(2) : value;
         return {
           ...it,
@@ -511,7 +549,13 @@ export function CreditForm({
 
   const addServiceItem = () => {
     if (!servDescription.trim() || servCost <= 0 || !servSpecialDayId) return;
-    const totalPrice = servCost * servQty;
+
+    const serviceCurrency = watchCurrency;
+    const serviceRate =
+      serviceCurrency !== 'VES' ? watchExchangeRate || 1 : 1;
+    const unitPriceBs = +(servCost * serviceRate).toFixed(2);
+    const totalPrice = +(unitPriceBs * servQty).toFixed(2);
+
     setItems((prev) => [
       ...prev,
       {
@@ -520,7 +564,9 @@ export function CreditForm({
         description: servDescription,
         quantity: servQty,
         unitPrice: servCost,
-        unitPriceBs: servCost,
+        currencyCode: serviceCurrency,
+        exchangeRate: serviceRate,
+        unitPriceBs,
         totalPrice,
         specialDayCategoryId: servSpecialDayId,
       },
@@ -940,7 +986,9 @@ export function CreditForm({
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Costo Unit.</Label>
+                      <Label className="text-xs">
+                        Costo Unit. ({creditSymbol})
+                      </Label>
                       <Input
                         type="number"
                         min="0"
@@ -1001,7 +1049,7 @@ export function CreditForm({
                         {items.some((it) => it.type === 'service') && (
                           <th className="py-1 text-left">Jornada</th>
                         )}
-                        <th className="py-1 text-right">Subtotal</th>
+                        <th className="py-1 text-right">Subtotal (Bs)</th>
                         <th className="py-1 w-8"></th>
                       </tr>
                     </thead>
@@ -1042,8 +1090,7 @@ export function CreditForm({
                               }}
                               className="h-7 w-24 text-xs text-right font-mono ml-auto"
                             />
-                            {it.type === 'product' &&
-                              it.currencyCode &&
+                            {it.currencyCode &&
                               it.currencyCode !== 'VES' && (
                                 <div className="text-[10px] text-muted-foreground">
                                   {it.currencyCode} ×{' '}

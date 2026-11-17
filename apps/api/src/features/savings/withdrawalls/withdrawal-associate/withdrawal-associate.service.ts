@@ -31,7 +31,17 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { and, desc, eq, ilike, inArray, or, SQL, sql } from 'drizzle-orm';
+import {
+  and,
+  desc,
+  eq,
+  ilike,
+  inArray,
+  isNull,
+  or,
+  SQL,
+  sql,
+} from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as ExcelJS from 'exceljs';
 import { AssociateAccountsMovementsService } from '../../parnerts/associate-accounts-movements/associate-accounts-movements.service';
@@ -56,6 +66,28 @@ export class WithdrawalAssociateService {
     private readonly bankMovementsService: BankMovementsService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
+
+  private _normalizeText(value: string | null | undefined): string {
+    return (value ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
+  }
+
+  private _isPartialWithdrawalType(
+    description: string | null | undefined,
+  ): boolean {
+    const d = this._normalizeText(description);
+    return (
+      d.includes('retiros parciales') ||
+      (d.includes('parcial') && d.includes('rcv'))
+    );
+  }
+
+  private _roundMoney(value: number): number {
+    return Number(value.toFixed(2));
+  }
 
   private _hasElapsedMonths(
     currentDate: Date,
@@ -89,6 +121,16 @@ export class WithdrawalAssociateService {
       description,
       commercialHouseId,
       withdrawalItems,
+      currencyCode = CurrencyCodeEnum.VES,
+      exchangeRate,
+      goodsTotalAmount,
+      receivedAmount,
+      receivedCurrencyCode,
+      receivedExchangeRate,
+      receivedPaymentMethod,
+      receivedReference,
+      receivedBankAccountId,
+      receivedAt,
       allowWithActiveLoanOrCredit = false,
       allowWithPayrollCredit = false,
       allowEarlyWithdrawal = false,
@@ -157,6 +199,157 @@ export class WithdrawalAssociateService {
       throw new NotFoundException('Tipo de retiro no encontrado.');
     }
 
+    const isPartialWithdrawal = this._isPartialWithdrawalType(
+      withdrawalType.description,
+    );
+    const itemList = withdrawalItems ?? [];
+    const itemsTotal = this._roundMoney(
+      itemList.reduce((sum, item) => {
+        const quantity = Number(item.quantity ?? 0);
+        const totalBase = Number(
+          item.totalBase ??
+            (item.unitPriceBase ?? item.agreedSellingPrice ?? 0) * quantity,
+        );
+        return sum + (Number.isFinite(totalBase) ? totalBase : 0);
+      }, 0),
+    );
+
+    const sessionCurrency = (isPartialWithdrawal
+      ? CurrencyCodeEnum.VES
+      : (currencyCode ?? CurrencyCodeEnum.VES)) as CurrencyCodeEnum;
+    const sessionRate =
+      sessionCurrency === CurrencyCodeEnum.VES
+        ? 1
+        : Number(exchangeRate ?? 0);
+
+    if (
+      !isPartialWithdrawal &&
+      sessionCurrency !== CurrencyCodeEnum.VES &&
+      !(sessionRate > 0)
+    ) {
+      throw new BadRequestException(
+        'Debe indicar una tasa de cambio válida para la moneda del retiro.',
+      );
+    }
+
+    const goodsTotal = isPartialWithdrawal
+      ? this._roundMoney(Number(requestedAmount))
+      : itemList.length > 0
+        ? itemsTotal
+        : this._roundMoney(
+            Number(goodsTotalAmount ?? requestedAmount ?? 0),
+          );
+
+    if (!isPartialWithdrawal && !(goodsTotal > 0)) {
+      throw new BadRequestException(
+        'El retiro debe tener al menos un producto o servicio con monto mayor a cero.',
+      );
+    }
+
+    const hasReceivedFields = !!(
+      receivedPaymentMethod ||
+      receivedReference ||
+      receivedBankAccountId ||
+      receivedCurrencyCode ||
+      receivedExchangeRate
+    );
+
+    if (hasReceivedFields && !(Number(receivedAmount ?? 0) > 0)) {
+      throw new BadRequestException(
+        'Debe indicar el monto del pago parcial recibido.',
+      );
+    }
+
+    if (isPartialWithdrawal && hasReceivedFields) {
+      throw new BadRequestException(
+        'Los retiros parciales no permiten registrar un pago parcial de productos.',
+      );
+    }
+
+    let receivedBase = 0;
+    let receivedCurrency = CurrencyCodeEnum.VES;
+    let receivedRate = 1;
+
+    if (!isPartialWithdrawal && Number(receivedAmount ?? 0) > 0) {
+      if (
+        !receivedPaymentMethod ||
+        !receivedReference?.trim() ||
+        !receivedBankAccountId
+      ) {
+        throw new BadRequestException(
+          'Debe indicar el método de pago, la referencia y la cuenta bancaria del pago recibido.',
+        );
+      }
+
+      receivedCurrency = (receivedCurrencyCode ??
+        sessionCurrency) as CurrencyCodeEnum;
+      receivedRate =
+        receivedCurrency === CurrencyCodeEnum.VES
+          ? 1
+          : Number(receivedExchangeRate ?? sessionRate);
+
+      if (!(receivedRate > 0)) {
+        throw new BadRequestException(
+          'Debe indicar una tasa de cambio válida para el pago recibido.',
+        );
+      }
+
+      receivedBase = this._roundMoney(
+        Number(receivedAmount) * receivedRate,
+      );
+
+      if (!(receivedBase > 0)) {
+        throw new BadRequestException(
+          'El monto del pago recibido debe ser mayor a cero.',
+        );
+      }
+
+      if (receivedBase >= goodsTotal) {
+        throw new BadRequestException(
+          'El pago recibido debe ser menor al total de los productos. El saldo restante se descuenta por haberes.',
+        );
+      }
+
+      const [bankAccount] = await this.db
+        .select({
+          id: schema.bankAccounts.id,
+          currencyCode: schema.bankAccounts.currencyCode,
+          isActive: schema.bankAccounts.isActive,
+        })
+        .from(schema.bankAccounts)
+        .where(
+          and(
+            eq(schema.bankAccounts.id, receivedBankAccountId),
+            eq(schema.bankAccounts.tenantId, tenantId),
+          ),
+        );
+
+      if (!bankAccount || !bankAccount.isActive) {
+        throw new NotFoundException(
+          'La cuenta bancaria del pago recibido no existe o está inactiva.',
+        );
+      }
+
+      if (
+        bankAccount.currencyCode !== receivedCurrency &&
+        bankAccount.currencyCode !== CurrencyCodeEnum.VES
+      ) {
+        throw new BadRequestException(
+          'La cuenta bancaria debe estar en la moneda del pago recibido o en bolívares.',
+        );
+      }
+    }
+
+    const financedAmount = isPartialWithdrawal
+      ? this._roundMoney(Number(requestedAmount))
+      : this._roundMoney(goodsTotal - receivedBase);
+
+    if (!isPartialWithdrawal && !(financedAmount > 0)) {
+      throw new BadRequestException(
+        'El monto financiado por haberes debe ser mayor a cero.',
+      );
+    }
+
     const [associateAccount] = await this.db
       .select()
       .from(associateHaberesBalance)
@@ -165,7 +358,7 @@ export class WithdrawalAssociateService {
       );
 
     const haberesBalance = Number(associateAccount?.haberesBalance ?? 0);
-    const requestedRounded = Number(requestedAmount.toFixed(2));
+    const requestedRounded = financedAmount;
 
     const maxAllowedAmount = Number(
       (
@@ -261,7 +454,7 @@ export class WithdrawalAssociateService {
         .values({
           tenantId,
           associateAccountId,
-          requestedAmount: requestedAmount.toString(),
+          requestedAmount: financedAmount.toString(),
           withdrawalDate: date,
           withdrawalTypeId,
           referenceCode: await this.generateCodeService.generateNextReference(
@@ -271,6 +464,31 @@ export class WithdrawalAssociateService {
             'withdrawals',
           ),
           paymentMethod,
+          currencyCode: sessionCurrency,
+          exchangeRate: sessionRate.toString(),
+          amountBase: goodsTotal.toFixed(4),
+          amountForeign:
+            sessionCurrency !== CurrencyCodeEnum.VES
+              ? (goodsTotal / sessionRate).toFixed(4)
+              : '0.0000',
+          goodsTotalAmount: isPartialWithdrawal
+            ? null
+            : goodsTotal.toFixed(6),
+          receivedAmount:
+            receivedBase > 0 ? Number(receivedAmount).toFixed(6) : null,
+          receivedCurrencyCode:
+            receivedBase > 0 ? receivedCurrency : null,
+          receivedExchangeRate:
+            receivedBase > 0 ? receivedRate.toFixed(6) : null,
+          receivedAmountBase:
+            receivedBase > 0 ? receivedBase.toFixed(6) : null,
+          receivedPaymentMethod:
+            receivedBase > 0 ? receivedPaymentMethod : null,
+          receivedReference:
+            receivedBase > 0 ? (receivedReference ?? null) : null,
+          receivedBankAccountId:
+            receivedBase > 0 ? (receivedBankAccountId ?? null) : null,
+          receivedAt: receivedBase > 0 ? (receivedAt ?? date) : null,
           createdById: userId,
           status: withdrawalStatusEnum.REQUESTED,
           commercialHouseId: commercialHouseId ?? null,
@@ -355,7 +573,8 @@ export class WithdrawalAssociateService {
       // administrativo al monto solicitado. Los retiros normales lo descuentan.
       const addsAdministrativeFee =
         !!withdrawalType?.isHouseComercial ||
-        !!withdrawalType?.isInternalInventory;
+        !!withdrawalType?.isInternalInventory ||
+        Number(withdrawal.goodsTotalAmount ?? 0) > 0;
       const disbursedAmount = addsAdministrativeFee
         ? Number(withdrawal.requestedAmount) + administrativeFee
         : Number(withdrawal.requestedAmount) - administrativeFee;
@@ -497,6 +716,17 @@ export class WithdrawalAssociateService {
         disbursedAmount: withdrawalsAssociates.disbursedAmount,
         administrativeFee: withdrawalsAssociates.administrativeFee,
         paymentMethod: withdrawalsAssociates.paymentMethod,
+        currencyCode: withdrawalsAssociates.currencyCode,
+        exchangeRate: withdrawalsAssociates.exchangeRate,
+        goodsTotalAmount: withdrawalsAssociates.goodsTotalAmount,
+        receivedAmount: withdrawalsAssociates.receivedAmount,
+        receivedCurrencyCode: withdrawalsAssociates.receivedCurrencyCode,
+        receivedExchangeRate: withdrawalsAssociates.receivedExchangeRate,
+        receivedAmountBase: withdrawalsAssociates.receivedAmountBase,
+        receivedPaymentMethod: withdrawalsAssociates.receivedPaymentMethod,
+        receivedReference: withdrawalsAssociates.receivedReference,
+        receivedBankAccountId: withdrawalsAssociates.receivedBankAccountId,
+        receivedAt: withdrawalsAssociates.receivedAt,
         associateCedula: associates.cedula,
         associateFullname: associates.fullname,
         status: withdrawalsAssociates.status,
@@ -524,6 +754,18 @@ export class WithdrawalAssociateService {
       requestedAmount: Number(item.requestedAmount ?? 0).toFixed(2),
       disbursedAmount: Number(item.disbursedAmount ?? 0).toFixed(2),
       administrativeFee: Number(item.administrativeFee ?? 0).toFixed(2),
+      goodsTotalAmount:
+        item.goodsTotalAmount != null
+          ? Number(item.goodsTotalAmount).toFixed(2)
+          : null,
+      receivedAmount:
+        item.receivedAmount != null
+          ? Number(item.receivedAmount).toFixed(2)
+          : null,
+      receivedAmountBase:
+        item.receivedAmountBase != null
+          ? Number(item.receivedAmountBase).toFixed(2)
+          : null,
     }));
 
     return {
@@ -954,6 +1196,10 @@ export class WithdrawalAssociateService {
       eq(withdrawalsAssociates.tenantId, tenantId),
       eq(withdrawalTypes.isHouseComercial, false),
       eq(withdrawalTypes.isInternalInventory, false),
+      or(
+        isNull(withdrawalsAssociates.goodsTotalAmount),
+        eq(withdrawalsAssociates.goodsTotalAmount, '0'),
+      )!,
     ];
 
     if (search) {
@@ -1034,6 +1280,17 @@ export class WithdrawalAssociateService {
         administrativeFee: withdrawalsAssociates.administrativeFee,
         disbursedAmount: withdrawalsAssociates.disbursedAmount,
         paymentMethod: withdrawalsAssociates.paymentMethod,
+        currencyCode: withdrawalsAssociates.currencyCode,
+        exchangeRate: withdrawalsAssociates.exchangeRate,
+        goodsTotalAmount: withdrawalsAssociates.goodsTotalAmount,
+        receivedAmount: withdrawalsAssociates.receivedAmount,
+        receivedCurrencyCode: withdrawalsAssociates.receivedCurrencyCode,
+        receivedExchangeRate: withdrawalsAssociates.receivedExchangeRate,
+        receivedAmountBase: withdrawalsAssociates.receivedAmountBase,
+        receivedPaymentMethod: withdrawalsAssociates.receivedPaymentMethod,
+        receivedReference: withdrawalsAssociates.receivedReference,
+        receivedBankAccountId: withdrawalsAssociates.receivedBankAccountId,
+        receivedAt: withdrawalsAssociates.receivedAt,
         referenceCode: withdrawalsAssociates.referenceCode,
         status: withdrawalsAssociates.status,
         commercialHouseId: withdrawalsAssociates.commercialHouseId,
@@ -1044,6 +1301,8 @@ export class WithdrawalAssociateService {
         associateName: schema.associates.fullname,
         associateCedula: schema.associates.cedula,
         withdrawalTypeName: schema.withdrawalTypes.description,
+        isHouseComercial: schema.withdrawalTypes.isHouseComercial,
+        isInternalInventory: schema.withdrawalTypes.isInternalInventory,
       })
       .from(withdrawalsAssociates)
       .where(
@@ -1353,7 +1612,9 @@ export class WithdrawalAssociateService {
                   {
                     productId: item.itemId ?? '',
                     quantity: item.quantity,
-                    unitCost: Number(item.agreedSellingPrice),
+                    unitCost: Number(
+                      item.unitPriceBase ?? item.agreedSellingPrice,
+                    ),
                   },
                 ],
               },
@@ -1365,11 +1626,61 @@ export class WithdrawalAssociateService {
         }
       }
 
-      // 3. Actualizar estatus del retiro
+      // 3. Registrar el pago parcial recibido como entrada bancaria.
+      let receivedBankTransactionId: string | null = null;
+      const receivedAmountBase = Number(
+        withdrawalRecord.receivedAmountBase ?? 0,
+      );
+
+      if (receivedAmountBase > 0 && withdrawalRecord.receivedBankAccountId) {
+        const [receivedBankAccount] = await tx
+          .select({ currencyCode: schema.bankAccounts.currencyCode })
+          .from(schema.bankAccounts)
+          .where(eq(schema.bankAccounts.id, withdrawalRecord.receivedBankAccountId));
+
+        const bankCreditAmount =
+          receivedBankAccount?.currencyCode === CurrencyCodeEnum.VES
+            ? receivedAmountBase
+            : Number(withdrawalRecord.receivedAmount ?? 0);
+
+        const bankResult = await this.bankMovementsService.createAndReconcile(
+          {
+            movement: {
+              bankAccountId: withdrawalRecord.receivedBankAccountId,
+              transactionDate: withdrawalRecord.receivedAt
+                ? new Date(withdrawalRecord.receivedAt)
+                : new Date(withdrawalRecord.withdrawalDate),
+              paymentMethod:
+                withdrawalRecord.receivedPaymentMethod ??
+                paymentMethodEnum.BANK_TRANSFER,
+              description: `Pago parcial de retiro ${withdrawalRecord.referenceCode}`,
+              bankReference: withdrawalRecord.receivedReference ?? undefined,
+              category: BankTransactionCategory.PAYMENT_PRODUCT_WITHDRAWAL,
+              creditAmount: bankCreditAmount,
+              debitAmount: 0,
+            },
+            links: [
+              {
+                internalRecordType: 'MEMBER_WITHDRAWAL',
+                internalRecordId: withdrawalRecord.id,
+              },
+            ],
+          },
+          userId,
+          tenantId,
+          tx,
+        );
+        receivedBankTransactionId = bankResult.movement.id;
+      }
+
+      // 4. Actualizar estatus del retiro
       const [updated] = await tx
         .update(withdrawalsAssociates)
         .set({
           status: withdrawalStatusEnum.PROCESSED,
+          receivedBankTransactionId:
+            receivedBankTransactionId ??
+            withdrawalRecord.receivedBankTransactionId,
           updatedById: userId,
         })
         .where(
@@ -1410,6 +1721,14 @@ export class WithdrawalAssociateService {
             : new Date(),
           requestedAmount: Number(withdrawalRecord.requestedAmount),
           administrativeFee: Number(withdrawalRecord.administrativeFee),
+          goodsTotalAmount: Number(
+            withdrawalRecord.goodsTotalAmount ??
+              withdrawalRecord.requestedAmount,
+          ),
+          receivedAmountBase: Number(
+            withdrawalRecord.receivedAmountBase ?? 0,
+          ),
+          receivedReference: withdrawalRecord.receivedReference ?? undefined,
           isHouseInventary: withdrawalTypeRecord?.isHouseComercial
             ? 'CASA-COMERCIAL'
             : withdrawalTypeRecord?.isInternalInventory
@@ -1814,6 +2133,8 @@ export class WithdrawalAssociateService {
           requestedAmount: row.monto,
           administrativeFee,
           disbursedAmount,
+          goodsTotalAmount: row.monto,
+          receivedAmountBase: 0,
           entryDate: row.fecha,
         },
       };
@@ -1855,6 +2176,8 @@ export class WithdrawalAssociateService {
             withdrawalDate: row.fecha,
             requestedAmount: coreResult.accountingParams.requestedAmount,
             administrativeFee: coreResult.accountingParams.administrativeFee,
+            goodsTotalAmount: coreResult.accountingParams.goodsTotalAmount,
+            receivedAmountBase: 0,
             isHouseInventary: isHouseInventary,
           },
           undefined,

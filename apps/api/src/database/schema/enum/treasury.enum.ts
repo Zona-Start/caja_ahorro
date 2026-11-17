@@ -5,6 +5,7 @@ export const bankTransactionCategory = treasurySchema.enum(
   [
     'MEMBER_CONTRIBUTION', // aportes / carga haberes
     'MEMBER_WITHDRAWAL', // retiro parcial
+    'PAYMENT_PRODUCT_WITHDRAWAL', // pago parcial de productos en retiros
     'PAYROLL_SETTLEMENT', // liquidación final
     'LOAN_DISBURSEMENT',
     'LOAN_PAYMENT',

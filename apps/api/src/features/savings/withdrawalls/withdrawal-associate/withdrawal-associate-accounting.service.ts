@@ -25,6 +25,9 @@ export interface ProcessingAccountingParams {
   withdrawalDate: Date;
   requestedAmount: number;
   administrativeFee: number;
+  goodsTotalAmount: number;
+  receivedAmountBase: number;
+  receivedReference?: string;
   isHouseInventary: string;
 }
 
@@ -96,6 +99,41 @@ export class WithdrawalAssociateAccountingService {
     tx?: NodePgDatabase<typeof schema>,
   ) {
     const typeDesc = params.withdrawalTypeDescription || 'RETIRO DE HABERES';
+    const isHouseCommercial = params.isHouseInventary === 'CASA-COMERCIAL';
+    const goodsTotal =
+      params.goodsTotalAmount > 0
+        ? params.goodsTotalAmount
+        : params.requestedAmount;
+    const receivedAmount = Math.max(0, params.receivedAmountBase || 0);
+
+    const amounts: Record<string, number> = {
+      SPECIAL_WITHDRAWAL_SAVINGS:
+        params.requestedAmount + (params.administrativeFee || 0),
+      SERVICE_FEE_INCOME: isHouseCommercial
+        ? goodsTotal
+        : params.administrativeFee,
+      OPERATION_COUNTERPART: isHouseCommercial
+        ? params.administrativeFee
+        : goodsTotal,
+    };
+    const descriptions: Record<string, string> = {
+      SPECIAL_WITHDRAWAL_SAVINGS: typeDesc,
+      SERVICE_FEE_INCOME: isHouseCommercial
+        ? `${params.associateCedula} ${params.associateFullname}`
+        : typeDesc,
+      OPERATION_COUNTERPART: isHouseCommercial
+        ? typeDesc
+        : `${params.associateCedula} ${params.associateFullname}`,
+    };
+
+    // El rol BANK_ACCOUNT se envía únicamente cuando existe un pago parcial.
+    // Si no se envía, la regla contable sigue funcionando como antes.
+    if (receivedAmount > 0) {
+      amounts.BANK_ACCOUNT = receivedAmount;
+      descriptions.BANK_ACCOUNT = params.receivedReference
+        ? `Pago parcial retiro Ref: ${params.receivedReference}`
+        : `Pago parcial retiro - ${typeDesc}`;
+    }
 
     const result = await this.accountingEntriesService.createAutomaticEntry(
       tenantId,
@@ -114,42 +152,11 @@ export class WithdrawalAssociateAccountingService {
         items: [
           {
             associateId: params.associateId,
-            amounts: {
-              SPECIAL_WITHDRAWAL_SAVINGS:
-                params.requestedAmount + (params.administrativeFee || 0),
-              SERVICE_FEE_INCOME:
-                params.isHouseInventary === 'CASA-COMERCIAL'
-                  ? params.requestedAmount
-                  : params.administrativeFee,
-              OPERATION_COUNTERPART:
-                params.isHouseInventary === 'CASA-COMERCIAL'
-                  ? params.administrativeFee
-                  : params.requestedAmount,
-            },
-            descriptions: {
-              SPECIAL_WITHDRAWAL_SAVINGS: typeDesc,
-              SERVICE_FEE_INCOME:
-                params.isHouseInventary === 'CASA-COMERCIAL'
-                  ? `${params.associateCedula} ${params.associateFullname}`
-                  : typeDesc,
-              OPERATION_COUNTERPART:
-                params.isHouseInventary === 'CASA-COMERCIAL'
-                  ? typeDesc
-                  : `${params.associateCedula} ${params.associateFullname}`,
-            },
+            amounts,
+            descriptions,
           },
         ],
-        globalDescriptions: {
-          SPECIAL_WITHDRAWAL_SAVINGS: typeDesc,
-          SERVICE_FEE_INCOME:
-            params.isHouseInventary === 'CASA-COMERCIAL'
-              ? `${params.associateCedula} ${params.associateFullname}`
-              : typeDesc,
-          OPERATION_COUNTERPART:
-            params.isHouseInventary === 'CASA-COMERCIAL'
-              ? typeDesc
-              : `${params.associateCedula} ${params.associateFullname}`,
-        },
+        globalDescriptions: descriptions,
       },
       tx,
     );

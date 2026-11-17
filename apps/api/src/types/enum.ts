@@ -302,6 +302,7 @@ export enum BankTransactionCategory {
   // --- Transacciones con Asociados (MEMBER) ---
   MEMBER_CONTRIBUTION = 'MEMBER_CONTRIBUTION', // Aportes, Cuotas de Ahorro, Carga de haberes
   MEMBER_WITHDRAWAL = 'MEMBER_WITHDRAWAL', // Retiro parcial de haberes
+  PAYMENT_PRODUCT_WITHDRAWAL = 'PAYMENT_PRODUCT_WITHDRAWAL', // Pago parcial de productos en retiros
   PAYROLL_SETTLEMENT = 'PAYROLL_SETTLEMENT', // Liquidación final de haberes/nómina
 
   // --- Transacciones de Cartera (LOAN/CREDIT) ---

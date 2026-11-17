@@ -104,11 +104,63 @@ export function WithdrawalDetailsModal({ open, onOpenChange, data }: Props) {
               </div>
               <Separator />
               <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Monto Solicitado:</span>
+                <span className="text-sm text-muted-foreground">
+                  {Number(data.goodsTotalAmount ?? 0) > 0
+                    ? 'Monto a financiar:'
+                    : 'Monto Solicitado:'}
+                </span>
                 <span className="text-sm font-mono font-bold">
                   {formatCurrency(Number(data.requestedAmount ?? 0), 'VES')}
                 </span>
               </div>
+              {Number(data.goodsTotalAmount ?? 0) > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">
+                    Total productos:
+                  </span>
+                  <span className="text-sm font-mono">
+                    {formatCurrency(
+                      Number(data.goodsTotalAmount ?? 0),
+                      'VES',
+                    )}
+                  </span>
+                </div>
+              )}
+              {Number(data.receivedAmountBase ?? 0) > 0 && (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">
+                      Pago recibido:
+                    </span>
+                    <span className="text-sm font-mono text-emerald-600">
+                      {formatCurrency(
+                        Number(data.receivedAmountBase ?? 0),
+                        'VES',
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">
+                      Referencia pago:
+                    </span>
+                    <span className="text-sm font-mono">
+                      {data.receivedReference || '—'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">
+                      Método pago:
+                    </span>
+                    <span className="text-sm">
+                      {PAYMENT_METHOD[
+                        data.receivedPaymentMethod as keyof typeof PAYMENT_METHOD
+                      ] ||
+                        data.receivedPaymentMethod ||
+                        '—'}
+                    </span>
+                  </div>
+                </>
+              )}
               <div className="flex justify-between">
                 <span className="text-sm text-muted-foreground">Comisión Admin:</span>
                 <span className="text-sm font-mono">
@@ -116,7 +168,11 @@ export function WithdrawalDetailsModal({ open, onOpenChange, data }: Props) {
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Desembolsado:</span>
+                <span className="text-sm text-muted-foreground">
+                  {Number(data.goodsTotalAmount ?? 0) > 0
+                    ? 'Total a descontar:'
+                    : 'Desembolsado:'}
+                </span>
                 <span className="text-sm font-mono font-bold">
                   {formatCurrency(Number(data.disbursedAmount ?? 0), 'VES')}
                 </span>

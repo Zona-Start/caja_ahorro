@@ -32,6 +32,11 @@ interface WithdrawalItem {
   quantity?: number;
   agreedSellingPrice?: number | string;
   days?: number;
+  currencyCode?: string | null;
+  exchangeRate?: number | string | null;
+  originalUnitPrice?: number | string | null;
+  unitPriceBase?: number | string | null;
+  totalBase?: number | string | null;
 }
 
 interface WithdrawalDetailsModalProps {
@@ -213,6 +218,74 @@ export function WithdrawalDetailsModal({
               </div>
             </div>
 
+            {Number(data.withdrawal.goodsTotalAmount ?? 0) > 0 && (
+              <div className="rounded-lg border p-4 bg-muted/30 space-y-2">
+                <p className="text-xs font-semibold uppercase text-muted-foreground">
+                  Pago parcial de productos
+                </p>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    Total productos:
+                  </span>
+                  <span className="font-mono font-semibold">
+                    {formatCurrency(
+                      Number(data.withdrawal.goodsTotalAmount ?? 0),
+                      'VES',
+                    )}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    Monto financiado por haberes:
+                  </span>
+                  <span className="font-mono font-semibold">
+                    {formatCurrency(
+                      Number(data.withdrawal.requestedAmount ?? 0),
+                      'VES',
+                    )}
+                  </span>
+                </div>
+                {Number(data.withdrawal.receivedAmountBase ?? 0) > 0 && (
+                  <>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        Pago recibido:
+                      </span>
+                      <span className="font-mono font-semibold text-emerald-600">
+                        {formatCurrency(
+                          Number(data.withdrawal.receivedAmountBase ?? 0),
+                          'VES',
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Método:</span>
+                      <span>
+                        {PAYMENT_METHOD_TYPES[
+                          data.withdrawal
+                            .receivedPaymentMethod as keyof typeof PAYMENT_METHOD_TYPES
+                        ] ||
+                          data.withdrawal.receivedPaymentMethod ||
+                          '—'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        Referencia:
+                      </span>
+                      <span className="font-mono">
+                        {data.withdrawal.receivedReference || '—'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Fecha pago:</span>
+                      <span>{formatDate(data.withdrawal.receivedAt)}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
             {hasItems && (
               <div className="rounded-lg border">
                 <div className="bg-muted px-4 py-2 font-semibold text-sm">
@@ -241,6 +314,17 @@ export function WithdrawalDetailsModal({
                           <TableRow key={idx}>
                             <TableCell>
                               <p className="font-medium">{displayName}</p>
+                              {item.currencyCode &&
+                                item.currencyCode !== 'VES' && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {item.currencyCode}{' '}
+                                    {Number(
+                                      item.originalUnitPrice ?? 0,
+                                    ).toFixed(2)}{' '}
+                                    ×{' '}
+                                    {Number(item.exchangeRate ?? 1).toFixed(2)}
+                                  </p>
+                                )}
                               {isCasaComercial && item.itemDescription && item.itemName && (
                                 <p className="text-xs text-muted-foreground">
                                   {item.itemName}

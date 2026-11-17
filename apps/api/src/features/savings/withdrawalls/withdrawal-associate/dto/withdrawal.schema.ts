@@ -6,8 +6,15 @@ const withdrawalItemSchema = z.object({
   itemDescription: z.string().optional().nullable(),
   itemId: z.string().uuid().optional().nullable(),
   quantity: z.number().positive(),
+  // Precio unitario en Bs (se mantiene para compatibilidad con el detalle).
   agreedSellingPrice: z.coerce.number().min(0),
   days: z.string().optional().nullable(),
+  // Datos de origen del precio del ítem.
+  currencyCode: z.enum(['VES', 'USD', 'EUR']).optional().nullable(),
+  exchangeRate: z.coerce.number().positive().optional().nullable(),
+  originalUnitPrice: z.coerce.number().min(0).optional().nullable(),
+  unitPriceBase: z.coerce.number().min(0).optional().nullable(),
+  totalBase: z.coerce.number().min(0).optional().nullable(),
 });
 
 export const CreateWithdrawalAssociateSchema = z.object({
@@ -19,6 +26,18 @@ export const CreateWithdrawalAssociateSchema = z.object({
   description: z.string().optional(),
   commercialHouseId: z.string().uuid().optional().nullable(),
   withdrawalItems: z.array(withdrawalItemSchema).optional(),
+  // Moneda y tasa únicas para todos los productos del retiro.
+  currencyCode: z.enum(['VES', 'USD', 'EUR']).optional(),
+  exchangeRate: z.coerce.number().positive().optional(),
+  goodsTotalAmount: z.coerce.number().nonnegative().optional(),
+  // Pago parcial recibido por transferencia/depósito.
+  receivedAmount: z.coerce.number().nonnegative().optional(),
+  receivedCurrencyCode: z.enum(['VES', 'USD', 'EUR']).optional(),
+  receivedExchangeRate: z.coerce.number().positive().optional(),
+  receivedPaymentMethod: z.nativeEnum(paymentMethodEnum).optional(),
+  receivedReference: z.string().max(100).optional(),
+  receivedBankAccountId: z.string().uuid().optional(),
+  receivedAt: z.coerce.date().optional(),
   allowWithActiveLoanOrCredit: z.boolean().optional().default(false),
   allowWithPayrollCredit: z.boolean().optional().default(false),
   allowEarlyWithdrawal: z.boolean().optional().default(false),

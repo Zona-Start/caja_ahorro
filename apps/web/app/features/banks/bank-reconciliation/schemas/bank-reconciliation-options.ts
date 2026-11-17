@@ -28,6 +28,7 @@ export const RECONCILIATION_ITEM_STATUS_OPTIONS = {
 export const CATEGORY_OPTIONS = {
   MEMBER_CONTRIBUTION: 'Aporte Socio',
   MEMBER_WITHDRAWAL: 'Retiro Socio',
+  PAYMENT_PRODUCT_WITHDRAWAL: 'Pago Parcial Producto Retiro',
   PAYROLL_SETTLEMENT: 'Liquidación',
   LOAN_DISBURSEMENT: 'Desembolso Préstamo',
   LOAN_PAYMENT: 'Pago Préstamo',
