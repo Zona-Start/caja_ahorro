@@ -153,6 +153,7 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
   const [showProductSearch, setShowProductSearch] = useState(false);
   const [productSearchQuery, setProductSearchQuery] = useState('');
   const [enablePartialPayment, setEnablePartialPayment] = useState(false);
+  const [enableItems, setEnableItems] = useState(true);
 
   const {
     data: associateResp,
@@ -220,6 +221,8 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
     control: form.control,
     name: 'receivedAt',
   });
+  const watchGoodsTotalAmount =
+    useWatch({ control: form.control, name: 'goodsTotalAmount' }) || 0;
   const receivedBankAccounts = useMemo(
     () =>
       (bankAccounts as any[]).filter(
@@ -271,8 +274,13 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
   const receivedBase = round2(
     (Number(watchReceivedAmount) || 0) * sessionRate,
   );
+  const goodsTotal = isGoodsWithdrawal
+    ? enableItems
+      ? itemsTotal
+      : Number(watchGoodsTotalAmount) || 0
+    : 0;
   const effectiveAmount = isGoodsWithdrawal
-    ? Math.max(0, round2(itemsTotal - receivedBase))
+    ? Math.max(0, round2(goodsTotal - receivedBase))
     : watchAmount || 0;
 
   const feePct = Number(selectedType?.administrativeFeePercentage ?? 0);
@@ -391,15 +399,24 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
       r.canSave = false;
       r.messages.push({ text: 'Seleccione un tipo de retiro', ok: false });
     }
-    if (selectedType?.isInternalInventory && items.length === 0) {
+    if (
+      enableItems &&
+      selectedType?.isInternalInventory &&
+      items.length === 0
+    ) {
       r.canSave = false;
       r.messages.push({ text: 'Agregue al menos un producto', ok: false });
     }
-    if (selectedType?.isHouseComercial && !supplierId) {
+    if (
+      enableItems &&
+      selectedType?.isHouseComercial &&
+      !supplierId
+    ) {
       r.canSave = false;
       r.messages.push({ text: 'Seleccione una casa comercial', ok: false });
     }
     if (
+      enableItems &&
       selectedType?.isHouseComercial &&
       supplierId &&
       items.length === 0
@@ -408,10 +425,22 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
       r.messages.push({ text: 'Agregue al menos un item', ok: false });
     }
 
-    if (isGoodsWithdrawal && items.length === 0) {
+    if (isGoodsWithdrawal && enableItems && items.length === 0) {
       r.canSave = false;
       r.messages.push({
         text: 'Agregue al menos un producto o servicio',
+        ok: false,
+      });
+    }
+
+    if (
+      isGoodsWithdrawal &&
+      !enableItems &&
+      !(Number(watchGoodsTotalAmount) > 0)
+    ) {
+      r.canSave = false;
+      r.messages.push({
+        text: 'Indique el monto del retiro',
         ok: false,
       });
     }
@@ -450,10 +479,10 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
           ok: false,
         });
       }
-      if (receivedBase >= itemsTotal) {
+      if (receivedBase >= goodsTotal) {
         r.canSave = false;
         r.messages.push({
-          text: 'El pago recibido debe ser menor al total de los productos',
+          text: 'El pago recibido debe ser menor al monto del retiro',
           ok: false,
         });
       }
@@ -497,6 +526,9 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
     selectedType,
     items,
     itemsTotal,
+    goodsTotal,
+    enableItems,
+    watchGoodsTotalAmount,
     supplierId,
     allowWithActiveLoanOrCredit,
     allowWithPayrollCredit,
@@ -654,6 +686,7 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
     setItems([]);
     setSupplierId('');
     setEnablePartialPayment(false);
+    setEnableItems(true);
     form.reset(WITHDRAWAL_DEFAULTS);
     setSubmittedSearch(trimmed);
     setShouldFetch(true);
@@ -667,6 +700,7 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
     setShowProductSearch(false);
     setProductSearchQuery('');
     setEnablePartialPayment(false);
+    setEnableItems(true);
     form.reset(WITHDRAWAL_DEFAULTS);
     queryClient.removeQueries({
       queryKey: [...QUERY_KEYS.withdrawals.all, 'request'],
@@ -686,6 +720,18 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
       }
     },
     [form],
+  );
+
+  const handleEnableItemsToggle = useCallback(
+    (enabled: boolean) => {
+      setEnableItems(enabled);
+
+      if (!enabled) {
+        setItems([]);
+        setSupplierId('');
+      }
+    },
+    [],
   );
 
   const addProductItem = useCallback(
@@ -836,7 +882,7 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
     if (!associate?.associateAccountId || !selectedType) return;
 
     let withdrawalItems: any[] = [];
-    if (isGoodsWithdrawal) {
+    if (isGoodsWithdrawal && enableItems) {
       if (selectedType.isInternalInventory) {
         withdrawalItems = items
           .filter((i) => i.type === 'product')
@@ -889,7 +935,7 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
           : null,
       currencyCode: isGoodsWithdrawal ? watchCurrency : 'VES',
       exchangeRate: isGoodsWithdrawal ? sessionRate : 1,
-      goodsTotalAmount: isGoodsWithdrawal ? itemsTotal : undefined,
+      goodsTotalAmount: isGoodsWithdrawal ? goodsTotal : undefined,
       withdrawalItems:
         withdrawalItems.length > 0 ? withdrawalItems : undefined,
       receivedAmount: hasReceivedPayment ? receivedAmount : undefined,
@@ -1330,6 +1376,22 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
                         </div>
                       )}
                     </div>
+                    <div className="flex items-center justify-between gap-3 rounded-md border bg-background p-2.5">
+                      <div>
+                        <p className="text-sm font-medium">
+                          Cargar productos / servicios
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Desactive si el retiro no requiere productos y desea
+                          colocar el monto manualmente.
+                        </p>
+                      </div>
+                      <Switch
+                        checked={enableItems}
+                        onCheckedChange={handleEnableItemsToggle}
+                        disabled={saving}
+                      />
+                    </div>
                     <p className="text-xs text-muted-foreground">
                       Esta moneda y tasa se aplican a todos los productos y al
                       pago parcial recibido.
@@ -1338,7 +1400,7 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
                 )}
 
                 {/* INVENTORY PRODUCTS */}
-                {selectedType?.isInternalInventory && (
+                {enableItems && selectedType?.isInternalInventory && (
                   <div className="rounded-lg border p-4 bg-muted/30 space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -1482,7 +1544,8 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
                 )}
 
                 {/* CASA COMERCIAL / ITEMS MANUALES */}
-                {(selectedType?.isHouseComercial || isManualGoods) && (
+                {enableItems &&
+                  (selectedType?.isHouseComercial || isManualGoods) && (
                   <div className="rounded-lg border p-4 bg-muted/30 space-y-3">
                     <div className="flex items-center gap-2">
                       <Building2 className="h-4 w-4" />
@@ -1791,9 +1854,13 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <span className="text-xs text-muted-foreground">
-                        {isGoodsWithdrawal ? 'Monto a retirar *' : 'Monto *'}
+                        {isGoodsWithdrawal
+                          ? enableItems
+                            ? 'Monto a retirar *'
+                            : 'Monto del retiro *'
+                          : 'Monto *'}
                       </span>
-                      {hasAutoAmount ? (
+                      {hasAutoAmount && enableItems ? (
                         <div className="h-9 flex items-center px-3 rounded-md border bg-background text-sm font-mono mt-1">
                           {effectiveAmount.toLocaleString('es', {
                             minimumFractionDigits: 2,
@@ -1808,10 +1875,16 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
                           <Input
                             className="pl-10 text-lg font-bold h-11"
                             type="number"
-                            value={watchAmount || ''}
+                            value={
+                              isGoodsWithdrawal
+                                ? watchGoodsTotalAmount || ''
+                                : watchAmount || ''
+                            }
                             onChange={(e) =>
                               form.setValue(
-                                'requestedAmount',
+                                isGoodsWithdrawal
+                                  ? 'goodsTotalAmount'
+                                  : 'requestedAmount',
                                 Number(e.target.value) || 0,
                               )
                             }
@@ -1871,9 +1944,16 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
                   {isGoodsWithdrawal && (
                     <div className="rounded-md border bg-background p-3 text-sm space-y-1">
                       <div className="flex justify-between">
-                        <span>Total productos:</span>
+                        <span>
+                          {enableItems
+                            ? 'Total productos:'
+                            : 'Monto del retiro:'}
+                        </span>
                         <span className="font-mono">
-                          {formatCurrency(itemsTotal, 'VES')}
+                          {formatCurrency(
+                            enableItems ? itemsTotal : goodsTotal,
+                            'VES',
+                          )}
                         </span>
                       </div>
                       <div className="flex justify-between">

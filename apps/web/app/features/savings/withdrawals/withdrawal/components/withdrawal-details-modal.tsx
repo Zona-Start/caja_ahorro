@@ -106,7 +106,7 @@ export function WithdrawalDetailsModal({ open, onOpenChange, data }: Props) {
               <div className="flex justify-between">
                 <span className="text-sm text-muted-foreground">
                   {Number(data.goodsTotalAmount ?? 0) > 0
-                    ? 'Monto a financiar:'
+                    ? 'Monto a retirar:'
                     : 'Monto Solicitado:'}
                 </span>
                 <span className="text-sm font-mono font-bold">
